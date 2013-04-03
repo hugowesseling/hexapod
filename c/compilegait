@@ -1,0 +1,1 @@
+g++ gait.c -o gait -l wiringPi -lrt -std=c++0x
