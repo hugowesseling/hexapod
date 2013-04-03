@@ -367,7 +367,7 @@ int main(int argc,char *argv[])
     serialBuffer[0]=0;
     for(i=0;i<LEGCNT;i++)
     {
-       setSeqPos(&legs[i],step,partial,&world,moveGroundX,moveGroundY,-8);
+       setSeqPos(&legs[i],step,partial,&world,moveX,moveY,-8);
        getHexCommands(&legs[i],partialBuffer);
        strncat(serialBuffer,partialBuffer,1000);
     }
