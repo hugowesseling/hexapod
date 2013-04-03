@@ -1,0 +1,34 @@
+// See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
+void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ)
+{
+  if(onGround(step,leg->isTripodA))
+  {
+    leg->tipPos= worldToPod(world,leg->groundPos);
+  }else
+  {
+    if((leg->isTripodA && step==4) || (!leg->isTripodA && step==0))
+    {
+      leg->tipPos=interpolatePosition(worldToPod(world,leg->groundPos),leg->neutralAirPos,partial);
+    }
+    if((leg->isTripodA && step==5) || (!leg->isTripodA && step==1))
+    {
+      leg->tipPos=leg->neutralAirPos;
+    }
+    if((leg->isTripodA && step==6) || (!leg->isTripodA && step==2))
+    {
+      if((leg->isTripodA && leg->prevStep!=6) || (!leg->isTripodA && leg->prevStep!=2))
+      {
+        //calculate new groundPosition
+        //for now use old position with some translation
+        Position worldGroundPos{leg->neutralAirPos.x,leg->neutralAirPos.y,groundZ};
+        worldGroundPos.x-=moveX;
+        worldGroundPos.y-=moveY;
+        leg->groundPos=podToWorld(world,worldGroundPos);
+        //leg->groundPos.x-=moveX;
+        //leg->groundPos.y-=moveY;
+      }
+      leg->tipPos=interpolatePosition(leg->neutralAirPos,worldToPod(world,leg->groundPos),partial);
+    }
+  }
+  leg->prevStep=step;
+}
