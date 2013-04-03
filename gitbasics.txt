@@ -6,7 +6,9 @@ git add <filename(s)>
 
 push to github:
 git push origin master
-(script: gpush)
+
+add files, commit and push to github:
+./gacp (script: Git Add, Commit and Push)
 
 pull from github:
 git pull origin
