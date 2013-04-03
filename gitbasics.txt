@@ -1,0 +1,20 @@
+commit:
+git commit
+
+add files:
+git add <filename(s)>
+
+push to github:
+git push origin master
+(script: gpush)
+
+pull from github:
+git pull origin
+
+
+==Initialization==
+
+add github:
+git remote add origin https://github.com/hugowesseling/hexapod.git
+
+
