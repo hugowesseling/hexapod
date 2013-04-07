@@ -19,7 +19,7 @@ from optparse import OptionParser
 # min_size=<minimum possible face size
 
 min_size = (20, 20)
-image_scale = 2
+image_scale = 1
 haar_scale = 1.2
 min_neighbors = 2
 haar_flags = 0
@@ -27,20 +27,20 @@ haar_flags = 0
 def detect_and_draw(img, cascade):
     # allocate temporary images
     gray = cv.CreateImage((img.width,img.height), 8, 1)
-    small_img = cv.CreateImage((cv.Round(img.width / image_scale),
-			       cv.Round (img.height / image_scale)), 8, 1)
+    #small_img = cv.CreateImage((cv.Round(img.width / image_scale),
+	#		       cv.Round (img.height / image_scale)), 8, 1)
 
     # convert color input image to grayscale
     cv.CvtColor(img, gray, cv.CV_BGR2GRAY)
 
     # scale input image for faster processing
-    cv.Resize(gray, small_img, cv.CV_INTER_LINEAR)
+    #cv.Resize(gray, small_img, cv.CV_INTER_LINEAR)
 
-    cv.EqualizeHist(small_img, small_img)
+    cv.EqualizeHist(gray,gray)
 
     if(cascade):
         t = cv.GetTickCount()
-        faces = cv.HaarDetectObjects(small_img, cascade, cv.CreateMemStorage(0),
+        faces = cv.HaarDetectObjects(gray, cascade, cv.CreateMemStorage(0),
                                      haar_scale, min_neighbors, haar_flags, min_size)
         t = cv.GetTickCount() - t
         print "detection time = %gms" % (t/(cv.GetTickFrequency()*1000.))
@@ -48,11 +48,12 @@ def detect_and_draw(img, cascade):
             for ((x, y, w, h), n) in faces:
                 # the input to cv.HaarDetectObjects was resized, so scale the 
                 # bounding box of each face and convert it to two CvPoints
-                pt1 = (int(x * image_scale), int(y * image_scale))
-                pt2 = (int((x + w) * image_scale), int((y + h) * image_scale))
-                cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+                #pt1 = (int(x * image_scale), int(y * image_scale))
+                #pt2 = (int((x + w) * image_scale), int((y + h) * image_scale))
+		print "Face found at %d,%d"%(x,y)
+                #cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
 
-    cv.ShowImage("result", img)
+    #cv.ShowImage("result", img)
 
 if __name__ == '__main__':
 
@@ -72,10 +73,10 @@ if __name__ == '__main__':
     else:
         capture = None
 
-    cv.NamedWindow("result", 1)
+    #cv.NamedWindow("result", 1)  Uncomment to create the result window
 
-    width = 320 #leave None for auto-detection
-    height = 240 #leave None for auto-detection
+    width = 160 #leave None for auto-detection
+    height = 120 #leave None for auto-detection
 
     if width is None:
     	width = int(cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH))
