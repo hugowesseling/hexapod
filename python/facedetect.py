@@ -9,6 +9,9 @@ Python implementation by: Roman Stanchak, James Bowman
 import sys
 import cv2.cv as cv
 from optparse import OptionParser
+import serial
+
+comOut = serial.Serial(port='/dev/ttyAMA0',baudrate=115200)
 
 # Parameters for haar detection
 # From the API:
@@ -23,8 +26,13 @@ image_scale = 1
 haar_scale = 1.2
 min_neighbors = 2
 haar_flags = 0
+pan=1500
+tilt=1500
+prevpanchange=0
+prevtiltchange=0
 
 def detect_and_draw(img, cascade):
+    global pan,tilt,prevpanchange,prevtiltchange
     # allocate temporary images
     gray = cv.CreateImage((img.width,img.height), 8, 1)
     #small_img = cv.CreateImage((cv.Round(img.width / image_scale),
@@ -51,7 +59,22 @@ def detect_and_draw(img, cascade):
                 #pt1 = (int(x * image_scale), int(y * image_scale))
                 #pt2 = (int((x + w) * image_scale), int((y + h) * image_scale))
 		print "Face found at %d,%d"%(x,y)
+		oldpan=pan
+		oldtilt=tilt
+                panchange=-prevpanchange-(x+w/2-img.width/2)*2
+		tiltchange=-prevtiltchange-(y+h/2-img.height/2)*2
+		pan+=panchange
+		tilt+=tiltchange
+		if pan>2000: pan=2000
+		if pan<1000: pan=1000
+		if tilt>2000: tilt=2000
+		if tilt<1000: tilt=1000
+		prevpanchange=pan-oldpan
+		prevtiltchange=tilt-oldtilt
+		print "New pan tilt:%d,%d"%(pan,tilt)
                 #cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+		break
+	comOut.write("#0P%d#1P%d T300\r"%(tilt,pan))
 
     #cv.ShowImage("result", img)
 
@@ -118,3 +141,4 @@ if __name__ == '__main__':
         cv.WaitKey(0)
 
     cv.DestroyWindow("result")
+    s.close()
