@@ -6,20 +6,20 @@ import select
 class simplesocket:
     def __init__(self,port):
         becomeServer=False
-        self.sock = socket.socket()
-        host=socket.gethostname()
+        self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        host=socket.gethostbyname("localhost")
         try:
             self.sock.connect((host,port))
         except socket.error:
             becomeServer=True
         if becomeServer:
             print "No client found for port %d, becoming server"%port
-            self.sock = socket.socket()
-            host=socket.gethostname()
+            self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             self.sock.bind((host, port))
             self.sock.listen(5)
             c, addr = self.sock.accept() 
             self.sock=c
+            print "Connected as server to port %d"%port
         else:
             print "Connected as client to port %d"%port
         self.sock.setblocking(0)

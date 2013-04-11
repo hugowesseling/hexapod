@@ -14,13 +14,19 @@ void error(const char *msg)
     exit(0);
 }
 
+struct LengthString
+{
+    int32_t length;
+    char buffer[256];
+};
+
 int main(int argc, char *argv[])
 {
   int sockfd;
   int len;
   int result;
   int n;
-  char buffer[256];
+  struct LengthString lengthString;
   struct sockaddr_in address;
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -36,16 +42,16 @@ int main(int argc, char *argv[])
     error("ERROR connecting");
   }
   printf("Please enter the message: ");
-  bzero(buffer,256);
-  fgets(buffer,255,stdin);
-  n = write(sockfd,buffer,strlen(buffer));
+  fgets(lengthString.buffer,255,stdin);
+  lengthString.length=strlen(lengthString.buffer);
+  n = write(sockfd,&lengthString,lengthString.length+4);
   if (n < 0) 
        error("ERROR writing to socket");
-  bzero(buffer,256);
-  n = read(sockfd,buffer,255);
+  bzero(lengthString.buffer,256);
+  n = read(sockfd,lengthString.buffer,255);
   if (n < 0) 
        error("ERROR reading from socket");
-  printf("%s\n",buffer);
+  printf("%s\n",lengthString.buffer);
   close(sockfd);
   return 0;
 }
