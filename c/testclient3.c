@@ -32,8 +32,16 @@ bool receive(int sockfd, struct LengthString *lengthString)
     error("ERROR: reading length from socket");
   }
   if ( lengthString->length>255 )error("ERROR: Length of string to read to large");
-  n = read(sockfd,lengthString->buffer,lengthString->length);
-  if (n < 0)error("ERROR: reading buffer from socket");
+  do
+  {
+    n = read(sockfd,lengthString->buffer,lengthString->length);
+    if (n < 0)
+    {
+      // In case the timeout occured, this is not an error
+      if (errno == EAGAIN)continue;
+      error("ERROR: reading buffer from socket");
+    }
+  }while(0);
   lengthString->buffer[lengthString->length]=0;
   return true;
 }
