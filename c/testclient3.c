@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <arpa/inet.h>
+#include <errno.h>
 
 void error(const char *msg)
 {
@@ -20,14 +21,33 @@ struct LengthString
     char buffer[256];
 };
 
+bool receive(int sockfd, struct LengthString *lengthString)
+{
+  int n;
+  n = read(sockfd,&(lengthString->length),4);
+  if (n < 0)
+  {
+    // In case the timeout occured, this is not an error
+    if (errno == EAGAIN)return false;
+    error("ERROR: reading length from socket");
+  }
+  if ( lengthString->length>255 )error("ERROR: Length of string to read to large");
+  n = read(sockfd,lengthString->buffer,lengthString->length);
+  if (n < 0)error("ERROR: reading buffer from socket");
+  lengthString->buffer[lengthString->length]=0;
+  return true;
+}
+
+
 int main(int argc, char *argv[])
 {
   int sockfd;
   int len;
   int result;
-  int n;
-  struct LengthString lengthString;
+  int n,i;
+  struct LengthString lengthStringToSend,lengthStringToReceive;
   struct sockaddr_in address;
+  struct timeval tv;
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -41,17 +61,30 @@ int main(int argc, char *argv[])
   {
     error("ERROR connecting");
   }
+
+  tv.tv_sec =  0;  /* 50 ms Timeout */
+  tv.tv_usec = 50000;
+  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
+
   printf("Please enter the message: ");
-  fgets(lengthString.buffer,255,stdin);
-  lengthString.length=strlen(lengthString.buffer);
-  n = write(sockfd,&lengthString,lengthString.length+4);
-  if (n < 0) 
-       error("ERROR writing to socket");
-  bzero(lengthString.buffer,256);
-  n = read(sockfd,lengthString.buffer,255);
-  if (n < 0) 
-       error("ERROR reading from socket");
-  printf("%s\n",lengthString.buffer);
+  fgets(lengthStringToSend.buffer,255,stdin);
+  lengthStringToSend.length=strlen(lengthStringToSend.buffer);
+
+  for(i=0;i<50;i++)
+  {
+    if(i%3==0)
+    {
+      printf("Sending string with length %d\n",lengthStringToSend.length);
+      n = write(sockfd,&lengthStringToSend,lengthStringToSend.length+4);
+      if (n < 0)error("ERROR writing to socket1");
+    }
+    printf("Receiving..\n");
+    if(receive(sockfd,&lengthStringToReceive))
+    {
+      printf("Received:%s\n",lengthStringToReceive.buffer);
+    }
+    usleep(500000);
+  }
   close(sockfd);
   return 0;
 }
