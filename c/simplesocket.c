@@ -79,8 +79,8 @@ int simplesocket_create(int portno)
   connectresult = connect(sockfd, (struct sockaddr*)&address, len);
   if(connectresult<0)simplesocket_error("ERROR:simplesocket_create: connect");
 
-  tv.tv_sec =  0;  // 50 ms Timeout
-  tv.tv_usec = 50000;
+  tv.tv_sec =  0;  // 1 microsecond Timeout
+  tv.tv_usec = 1;
   setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
   return sockfd;
 }
