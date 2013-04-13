@@ -14,6 +14,18 @@ bool legCrossedBoundary=false;
 const char *ZEROSTRING="#21PO-50 #7PO-20 #6PO-20 #8PO30 #16PO-20 #18PO30\r";
 #define LEGCNT 6
 
+//gait modes
+#define M_WALKING 0
+#define M_STAND6  1 //stand with 6 legs on ground
+//define M_STAND4 2 //stand with 4 legs on ground
+
+//sequence steps
+#define S_GROUND 0
+#define S_MOVEUP 1
+#define S_MOVEDOWN 2
+
+#define STEPCNT 4
+
 typedef struct T_Position
 {
 	float x,y,z;
@@ -83,6 +95,7 @@ typedef struct T_Leg
   float coxaZeroRotation;
   Position femurStart;
   int prevStep;
+  int mode,groundPositionForMode;
 } Leg;
 
 typedef struct T_Angles
@@ -105,6 +118,8 @@ Leg createLeg(Position groundPos,Position jointPos,float coxaZeroRotation,int se
   leg.jointPos=jointPos;
   leg.coxaZeroRotation=coxaZeroRotation;
   leg.prevStep=0;
+  leg.mode=M_STAND6;
+  leg.groundPositionForMode=-1;  //invalid ground position
   return leg;
 }
 Position interpolatePosition(Position pos1,Position pos2,float alpha)
@@ -115,22 +130,33 @@ Position interpolatePosition(Position pos1,Position pos2,float alpha)
   return pos;
 }
 
-#define S_GROUND 0
-#define S_MOVEUP 1
-#define S_MOVEDOWN 2
-#define STEPCNT 4
 
 int sequenceMap[2][STEPCNT]={
 		{S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN},
 		{S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND} };
 
+
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
-void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ)
+void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
 {
-  switch(sequenceMap[leg->isTripodA][step])
+  int status=S_GROUND;
+  // leg->mode plays catch-up with mode given to this function. A leg has to run through part of the sequence before reaching a mode
+  switch(leg->mode)
+  {
+    case M_WALKING:
+      status=sequenceMap[leg->isTripodA][step];
+      break;
+    case M_STAND6:
+      status=S_GROUND;
+      break;
+  }
+  switch(status)
   {
     case S_GROUND:
       leg->tipPos= worldToPod(world,leg->groundPos);
+      //leg can change it's mode to M_STAND6 only if the groundposition is correct for that mode
+      if((mode==M_WALKING) || (mode==M_STAND6 && leg->groundPositionForMode==M_STAND6))
+        leg->mode=mode;
       break;
     case S_MOVEUP:
       leg->tipPos=interpolatePosition(worldToPod(world,leg->groundPos),leg->neutralAirPos,partial);
@@ -141,11 +167,15 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
         //calculate new groundPosition
         //for now use old position with some translation
         Position worldGroundPos{leg->neutralAirPos.x,leg->neutralAirPos.y,groundZ};
-        worldGroundPos.x-=moveX;
-        worldGroundPos.y-=moveY;
+        if(mode==M_WALKING) //only adjust ground position away from neutralposition if walking, in future add handling for M_STAND4
+        {
+          //New groundPosition=<airpos projected on ground> + <movement>
+          worldGroundPos.x-=moveX;
+          worldGroundPos.y-=moveY;
+        }
         leg->groundPos=podToWorld(world,worldGroundPos);
-        //leg->groundPos.x-=moveX;
-        //leg->groundPos.y-=moveY;
+        //Store for which mode the ground position is calculated
+        leg->groundPositionForMode=mode;
       }
       leg->tipPos=interpolatePosition(leg->neutralAirPos,worldToPod(world,leg->groundPos),partial);
       break;
@@ -324,8 +354,8 @@ int main(int argc,char *argv[])
   float drotz=0;
   float dist;
   Position rot;
-  bool stopped=false;
   bool scanDirectionRight=true;
+  int modeCounter=0;
 
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
@@ -378,13 +408,21 @@ int main(int argc,char *argv[])
       drotz=0.02f;
       printf("ROTATE\n");
     }
+    int mode=modeCounter&16?M_WALKING:M_STAND6;
+    if(mode==M_STAND6) //stop all movement if standing
+    {
+      moveX=moveY=0;
+    }
+
     float cosrz=cosf(-world.rot.z),sinrz=sinf(-world.rot.z);
     float moveGroundX=moveX*cosrz+moveY*sinrz;
     float moveGroundY=moveY*cosrz-moveX*sinrz;
+    modeCounter++;
     serialBuffer[0]=0;
+    printf("MODE: %d\n",mode);
     for(i=0;i<LEGCNT;i++)
     {
-       setSeqPos(&legs[i],step,partial,&world,moveX,moveY,-8);
+       setSeqPos(&legs[i],step,partial,&world,moveX,moveY,-8,mode);
        getHexCommands(&legs[i],partialBuffer);
        strncat(serialBuffer,partialBuffer,1000);
     }
@@ -395,15 +433,12 @@ int main(int argc,char *argv[])
 
     serialPuts(fd,serialBuffer);
 
-    if(!stopped || step!=3) //Stop at position 4
+    partial+=0.5;
+    if(partial>=1)
     {
-      partial+=0.5;
-      if(partial>=1)
-      {
-        partial-=1;
-        step++;
-        if(step>3)step=0;
-      }
+      partial-=1;
+      step++;
+      if(step>=STEPCNT)step=0;
     }
     printf("Step: %d, partial: %g\n",step,partial);
     //move speed max = move(X,Y) / ( 8 / partialAdd) ?
