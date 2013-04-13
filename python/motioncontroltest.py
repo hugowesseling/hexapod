@@ -1,5 +1,6 @@
 import simplesocket
 import time
+import math
 
 sock=simplesocket.simplesocket(12345)
 
@@ -9,7 +10,7 @@ while True:
     print "Sending"
     rotx=0
     roty=0
-    rotz=sin(counter*0.1)*0.1
+    rotz=math.sin(counter*0.1)*0.1
     sock.send("R %f %f %f"%(rotx,roty,rotz))
     time.sleep(1.0)
     print "Testing to receive"

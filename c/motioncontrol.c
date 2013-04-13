@@ -12,6 +12,7 @@ using namespace std;
 bool legCrossedBoundary=false;
 
 const char *ZEROSTRING="#21PO-50 #7PO-20 #6PO-20 #8PO30 #16PO-20 #18PO30\r";
+#define LEGCNT 6
 
 typedef struct T_Position
 {
@@ -114,29 +115,28 @@ Position interpolatePosition(Position pos1,Position pos2,float alpha)
   return pos;
 }
 
-//Determines if the leg is on the ground in this step
-bool onGround(int step,bool isTripodA)
-{
-  if(isTripodA)
-    return (step==0) || (step==1);
-  return (step==2) || (step==3);
-}
+#define S_GROUND 0
+#define S_MOVEUP 1
+#define S_MOVEDOWN 2
+#define STEPCNT 4
+
+int sequenceMap[2][STEPCNT]={
+		{S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN},
+		{S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND} };
 
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
 void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ)
 {
-  if(onGround(step,leg->isTripodA))
+  switch(sequenceMap[leg->isTripodA][step])
   {
-    leg->tipPos= worldToPod(world,leg->groundPos);
-  }else
-  {
-    if((leg->isTripodA && step==2) || (!leg->isTripodA && step==0))
-    {
+    case S_GROUND:
+      leg->tipPos= worldToPod(world,leg->groundPos);
+      break;
+    case S_MOVEUP:
       leg->tipPos=interpolatePosition(worldToPod(world,leg->groundPos),leg->neutralAirPos,partial);
-    }
-    if((leg->isTripodA && step==3) || (!leg->isTripodA && step==1))
-    {
-      if((leg->isTripodA && leg->prevStep!=3) || (!leg->isTripodA && leg->prevStep!=1))
+      break;
+    case S_MOVEDOWN:
+      if(step!=leg->prevStep)
       {
         //calculate new groundPosition
         //for now use old position with some translation
@@ -148,7 +148,7 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
         //leg->groundPos.y-=moveY;
       }
       leg->tipPos=interpolatePosition(leg->neutralAirPos,worldToPod(world,leg->groundPos),partial);
-    }
+      break;
   }
   leg->prevStep=step;
 }
@@ -252,7 +252,6 @@ void getHexCommands(Leg *leg,char *strbuf) {
   }
 }
 
-#define LEGCNT 6
 
 // according to http://www.acroname.com/robotics/info/articles/irlinear/irlinear.html : R = (6787 / (V - 3)) - 4
 float ir2Distance(int val)
@@ -294,8 +293,6 @@ void readvoltages(int fd)
 
 int main(int argc,char *argv[])
 {
-int main(int argc,char *argv[])
-{
   char buffer[256];
   struct LengthString lengthStringToReceive;
   int sock=simplesocket_create(12345);
@@ -326,6 +323,7 @@ int main(int argc,char *argv[])
   float moveX=0,moveY=0;
   float drotz=0;
   float dist;
+  Position rot;
   bool stopped=false;
   bool scanDirectionRight=true;
 
@@ -336,6 +334,11 @@ int main(int argc,char *argv[])
     if(simplesocket_receive(sock,&lengthStringToReceive))
     {
       printf("Received:%s\n",lengthStringToReceive.buffer);
+      if(lengthStringToReceive.buffer[0]=='R')
+      {
+        sscanf(lengthStringToReceive.buffer,"R %f %f %f",&rot.x,&rot.y,&rot.z);
+        printf("New z rotation: %f\n",rot.z);
+      }
     }
 
     clock_gettime(CLOCK_MONOTONIC,&curTime);
