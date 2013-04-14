@@ -90,7 +90,7 @@ typedef struct T_Leg
   int servoStartPos;
   bool isTripodA;
   bool previousOnGround;
-  Position groundPos,neutralAirPos;
+  Position groundPos,neutralAirPos,st4Pos;
   Position tipPos;
   Position jointPos;
   float coxaZeroRotation;
@@ -106,13 +106,14 @@ typedef struct T_Angles
   float h;
 } Angles;
 
-Leg createLeg(Position groundPos,Position jointPos,float coxaZeroRotation,int servoStartPos,bool isTripodA,bool previousOnGround)
+Leg createLeg(Position groundPos,Position jointPos,Position st4Pos,float coxaZeroRotation,int servoStartPos,bool isTripodA,bool previousOnGround)
 {
   Leg leg;
   leg.servoStartPos=servoStartPos;
   leg.isTripodA=isTripodA;
   leg.previousOnGround=previousOnGround;
   leg.groundPos=groundPos;
+  leg.st4Pos=st4Pos;
   Position neutralAirPos{groundPos.x,groundPos.y,-4};
   leg.neutralAirPos=neutralAirPos;
   leg.tipPos=groundPos;
@@ -150,13 +151,16 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
     case M_STAND6:
       status=S_GROUND;
       break;
+    case M_STAND4:
+      status=S_GROUND;
+      break;
   }
   switch(status)
   {
     case S_GROUND:
       leg->tipPos= worldToPod(world,leg->groundPos);
-      //leg can change it's mode to M_STAND6 only if the groundposition is correct for that mode
-      if((mode==M_WALKING) || (mode==M_STAND6 && leg->groundPositionForMode==M_STAND6))
+      //leg can only change it's mode to M_STAND6 or M_STAND4 if the groundposition is correct for that mode
+      if( (mode==M_WALKING) || ((mode==M_STAND6 || mode==M_STAND4) && leg->groundPositionForMode==mode) )
         leg->mode=mode;
       break;
     case S_MOVEUP:
@@ -167,8 +171,12 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
       {
         //calculate new groundPosition
         //for now use old position with some translation
-        Position worldGroundPos{leg->neutralAirPos.x,leg->neutralAirPos.y,groundZ};
-        if(mode==M_WALKING) //only adjust ground position away from neutralposition if walking, in future add handling for M_STAND4
+        Position worldGroundPos;
+        if(mode==M_STAND4)
+          worldGroundPos=createPosition(leg->st4Pos.x,leg->st4Pos.y,groundZ);
+        else
+          worldGroundPos=createPosition(leg->neutralAirPos.x,leg->neutralAirPos.y,groundZ);
+        if(mode==M_WALKING) //only adjust ground position away from neutralposition if walking
         {
           //New groundPosition=<airpos projected on ground> + <movement>
           worldGroundPos.x-=moveX;
@@ -333,24 +341,30 @@ int main(int argc,char *argv[])
   World world{{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
 
-#define AirFBX 4
-#define AirMidX 5.85
-#define AirFBY 8
+#define JntFBX 4
+#define JntMX 5.85
+#define JntFBY 8
 #define GndFBX 13
-#define GndMidX 14.85
+#define GndMX 14.85
 #define GndFBY 13
-#define GndZ -8
-#define AirZ 0
+#define GndZ (-8)
+#define JntZ 0
+#define St4FX GndFBX
+#define St4MX 16
+#define St4BX GndFBX
+#define St4FY -15
+#define St4MY -6
+#define St4BY GndFBY
 
   //left legs (-x)
-  legs[0]=createLeg(createPosition(-GndFBX, -GndFBY,GndZ),createPosition(-AirFBX,-AirFBY,AirZ),(-180+22)*M_PI/180,2,true, true);  //front
-  legs[1]=createLeg(createPosition(-GndMidX,      0,GndZ),createPosition(-AirMidX,     0,AirZ),(-180   )*M_PI/180,5,false,true);  //mid
-  legs[2]=createLeg(createPosition(-GndFBX,  GndFBY,GndZ),createPosition(-AirFBX, AirFBY,AirZ),(-180-22)*M_PI/180,8,true, true);  //back
+  legs[0]=createLeg(createPosition(-GndFBX, -GndFBY,GndZ),createPosition(-JntFBX,-JntFBY,JntZ),createPosition(-St4FX, St4FY,GndZ),(-180+22)*M_PI/180,2,true, true);  //front
+  legs[1]=createLeg(createPosition(-GndMX,        0,GndZ),createPosition(-JntMX,       0,JntZ),createPosition(-St4MX, St4MY,GndZ),(-180   )*M_PI/180,5,false,true);  //mid
+  legs[2]=createLeg(createPosition(-GndFBX,  GndFBY,GndZ),createPosition(-JntFBX, JntFBY,JntZ),createPosition(-St4BX, St4BY,GndZ),(-180-22)*M_PI/180,8,true, true);  //back
 
   //right legs (+x)
-  legs[3]=createLeg(createPosition( GndFBX, -GndFBY,GndZ),createPosition( AirFBX,-AirFBY,AirZ),     -22 *M_PI/180,16,false,true);   //back
-  legs[4]=createLeg(createPosition( GndMidX,      0,GndZ),createPosition( AirMidX,     0,AirZ),       0 *M_PI/180,19,true, true);   //mid
-  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( AirFBX, AirFBY,AirZ),      22 *M_PI/180,22,false,true);  //front   
+  legs[3]=createLeg(createPosition( GndFBX, -GndFBY,GndZ),createPosition( JntFBX,-JntFBY,JntZ),createPosition( St4FX, St4FY,GndZ),     -22 *M_PI/180,16,false,true);   //back
+  legs[4]=createLeg(createPosition( GndMX,        0,GndZ),createPosition( JntMX,       0,JntZ),createPosition( St4MX, St4MY,GndZ),       0 *M_PI/180,19,true, true);   //mid
+  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,false,true);  //front   
 
   printf("Starting\n");
   int fd=serialOpen((char *)"/dev/ttyAMA0",115200);
@@ -421,9 +435,8 @@ int main(int argc,char *argv[])
       drotz=0.02f;
       printf("ROTATE\n");
     }
-    int mode=modeCounter&16?M_WALKING:M_STAND6;
-    mode=M_STAND6;
-    if(mode==M_STAND6) //stop all movement if standing
+    int mode=modeCounter&16?M_WALKING:M_STAND4;
+    if(mode==M_STAND4 || mode==M_STAND6) //stop all movement if standing
     {
       moveX=moveY=0;
     }
@@ -459,9 +472,9 @@ int main(int argc,char *argv[])
 
     world.trans.x+=moveGroundX/6.0;
     world.trans.y+=moveGroundY/6.0;
-    world.rot.x=rot.x;
-    world.rot.y=rot.y;
-    world.rot.z=rot.z; //+=drotz;
+    world.rot.x=0;//rot.x;
+    world.rot.y=0;//rot.y;
+    world.rot.z=0;//rot.z; //+=drotz;
     usleep(100000);
   }
   serialClose(fd);
