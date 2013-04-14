@@ -17,7 +17,7 @@ const char *ZEROSTRING="#21PO-50 #7PO-20 #6PO-20 #8PO30 #16PO-20 #18PO30\r";
 //gait modes
 #define M_WALKING 0
 #define M_STAND6  1 //stand with 6 legs on ground
-//define M_STAND4 2 //stand with 4 legs on ground
+#define M_STAND4  2 //stand with 4 legs on ground
 
 //sequence steps
 #define S_GROUND 0
@@ -30,6 +30,7 @@ typedef struct T_Position
 {
 	float x,y,z;
 } Position;
+
 Position createPosition(float x,float y,float z)
 {
   Position ret{x,y,z};
@@ -331,15 +332,25 @@ int main(int argc,char *argv[])
   struct timespec lastScanTime,curTime,diffTime;
   World world{{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
+
+#define AirFBX 4
+#define AirMidX 5.85
+#define AirFBY 8
+#define GndFBX 13
+#define GndMidX 14.85
+#define GndFBY 13
+#define GndZ -8
+#define AirZ 0
+
   //left legs (-x)
-  legs[0]=createLeg(createPosition(-13, -13,-4),createPosition(-4,  -8,0),(-180+22)*M_PI/180,2,true, true);  //front
-  legs[1]=createLeg(createPosition(-14.85,0,-4),createPosition(-5.85,0,0),(-180   )*M_PI/180,5,false,true);  //mid
-  legs[2]=createLeg(createPosition(-13,  13,-4),createPosition(-4,   8,0),(-180-22)*M_PI/180,8,true, true);  //back
+  legs[0]=createLeg(createPosition(-GndFBX, -GndFBY,GndZ),createPosition(-AirFBX,-AirFBY,AirZ),(-180+22)*M_PI/180,2,true, true);  //front
+  legs[1]=createLeg(createPosition(-GndMidX,      0,GndZ),createPosition(-AirMidX,     0,AirZ),(-180   )*M_PI/180,5,false,true);  //mid
+  legs[2]=createLeg(createPosition(-GndFBX,  GndFBY,GndZ),createPosition(-AirFBX, AirFBY,AirZ),(-180-22)*M_PI/180,8,true, true);  //back
 
   //right legs (+x)
-  legs[3]=createLeg(createPosition( 13, -13,-4),createPosition( 4,  -8,0),     -22 *M_PI/180,16,false,true);   //back
-  legs[4]=createLeg(createPosition( 14.85,0,-4),createPosition( 5.85,0,0),       0 *M_PI/180,19,true, true);   //mid
-  legs[5]=createLeg(createPosition( 13,  13,-4),createPosition( 4,   8,0),      22 *M_PI/180,22,false,true);  //front   
+  legs[3]=createLeg(createPosition( GndFBX, -GndFBY,GndZ),createPosition( AirFBX,-AirFBY,AirZ),     -22 *M_PI/180,16,false,true);   //back
+  legs[4]=createLeg(createPosition( GndMidX,      0,GndZ),createPosition( AirMidX,     0,AirZ),       0 *M_PI/180,19,true, true);   //mid
+  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( AirFBX, AirFBY,AirZ),      22 *M_PI/180,22,false,true);  //front   
 
   printf("Starting\n");
   int fd=serialOpen((char *)"/dev/ttyAMA0",115200);
@@ -353,7 +364,7 @@ int main(int argc,char *argv[])
   float moveX=0,moveY=0;
   float drotz=0;
   float dist;
-  Position rot;
+  Position rot=createPosition(0,0,0);
   bool scanDirectionRight=true;
   int modeCounter=0;
 
@@ -369,6 +380,8 @@ int main(int argc,char *argv[])
         sscanf(lengthStringToReceive.buffer,"R %f %f %f",&rot.x,&rot.y,&rot.z);
         printf("New z rotation: %f\n",rot.z);
       }
+      //send acknowledgement
+      simplesocket_send(sock,".");
     }
 
     clock_gettime(CLOCK_MONOTONIC,&curTime);
@@ -409,6 +422,7 @@ int main(int argc,char *argv[])
       printf("ROTATE\n");
     }
     int mode=modeCounter&16?M_WALKING:M_STAND6;
+    mode=M_STAND6;
     if(mode==M_STAND6) //stop all movement if standing
     {
       moveX=moveY=0;
@@ -445,7 +459,9 @@ int main(int argc,char *argv[])
 
     world.trans.x+=moveGroundX/6.0;
     world.trans.y+=moveGroundY/6.0;
-    world.rot.z+=drotz;
+    world.rot.x=rot.x;
+    world.rot.y=rot.y;
+    world.rot.z=rot.z; //+=drotz;
     usleep(100000);
   }
   serialClose(fd);
