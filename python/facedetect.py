@@ -73,10 +73,10 @@ def detect_and_draw(img, cascade):
 		prevtiltchange=tilt-oldtilt
 		print "New pan tilt:%d,%d"%(pan,tilt)
                 #cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+		comOut.write("#0P%d#1P%d T300\r"%(tilt,pan))
 		break
-	comOut.write("#0P%d#1P%d T300\r"%(tilt,pan))
 
-    #cv.ShowImage("result", img)
+    cv.ShowImage("result", img)
 
 if __name__ == '__main__':
 
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     else:
         capture = None
 
-    #cv.NamedWindow("result", 1)  Uncomment to create the result window
+    cv.NamedWindow("result", 1)  #Uncomment to create the result window
 
     width = 160 #leave None for auto-detection
     height = 120 #leave None for auto-detection

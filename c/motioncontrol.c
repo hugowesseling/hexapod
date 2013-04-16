@@ -395,7 +395,7 @@ int main(int argc,char *argv[])
         printf("New z rotation: %f\n",rot.z);
       }
       //send acknowledgement
-      simplesocket_send(sock,".");
+      //simplesocket_send(sock,".");
     }
 
     clock_gettime(CLOCK_MONOTONIC,&curTime);
@@ -453,8 +453,8 @@ int main(int argc,char *argv[])
        getHexCommands(&legs[i],partialBuffer);
        strncat(serialBuffer,partialBuffer,1000);
     }
-    int tilt=1500+rot.x*2000/M_PI;
-    int pan=1500+rot.z*2000/M_PI;
+    int tilt=1500-rot.x*2000/M_PI;
+    int pan=1500-rot.z*2000/M_PI;
     if(tilt<1200)tilt=1200;
     if(tilt>1800)tilt=1800;
     if(pan<1200)pan=1200;
