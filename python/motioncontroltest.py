@@ -8,9 +8,9 @@ counter=0
 while True:
     counter+=1
     print "Sending"
-    rotx=math.sin(counter*0.3)*0.1
-    roty=math.sin(counter*0.5)*0.1
-    rotz=math.sin(counter*0.7)*0.1
+    rotx=math.sin(counter*0.08)*0.1
+    roty=math.sin(counter*0.13)*0.1
+    rotz=math.sin(counter*0.20)*0.1
     sock.send("R %f %f %f"%(rotx,roty,rotz))
     while True:
       print "Testing to receive"

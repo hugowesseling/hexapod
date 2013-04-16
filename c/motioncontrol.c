@@ -400,7 +400,7 @@ int main(int argc,char *argv[])
 
     clock_gettime(CLOCK_MONOTONIC,&curTime);
     diffTime=timespecDiff(lastScanTime,curTime);
-    if(diffTime.tv_sec>=1)
+    /*if(diffTime.tv_sec>=1)
     {
       lastScanTime=curTime;
       if(scanDirectionRight)
@@ -411,7 +411,7 @@ int main(int argc,char *argv[])
         serialPuts(fd,(char *)"#1 P1350 S300\r");
       }
       scanDirectionRight=!scanDirectionRight;
-    }
+    }*/
     readvoltages(fd);
     dist=getDistance(fd);
     float maxSpeed=4.0f,speed=0.0f;
@@ -435,7 +435,7 @@ int main(int argc,char *argv[])
       drotz=0.02f;
       printf("ROTATE\n");
     }
-    int mode=modeCounter&16?M_WALKING:M_STAND4;
+    int mode=modeCounter<16?M_WALKING:M_STAND6;
     if(mode==M_STAND4 || mode==M_STAND6) //stop all movement if standing
     {
       moveX=moveY=0;
@@ -453,6 +453,14 @@ int main(int argc,char *argv[])
        getHexCommands(&legs[i],partialBuffer);
        strncat(serialBuffer,partialBuffer,1000);
     }
+    int tilt=1500+rot.x*2000/M_PI;
+    int pan=1500+rot.z*2000/M_PI;
+    if(tilt<1200)tilt=1200;
+    if(tilt>1800)tilt=1800;
+    if(pan<1200)pan=1200;
+    if(pan>1800)pan=1800;
+    snprintf(partialBuffer,30,"#0P%d #1P%d ",tilt,pan);
+    strncat(serialBuffer,partialBuffer,1000);
     printf("serialBuffer: %s\n",serialBuffer);
     strncat(serialBuffer,"T100\r",1000);
     if(legCrossedBoundary)
@@ -472,9 +480,9 @@ int main(int argc,char *argv[])
 
     world.trans.x+=moveGroundX/6.0;
     world.trans.y+=moveGroundY/6.0;
-    world.rot.x=0;//rot.x;
-    world.rot.y=0;//rot.y;
-    world.rot.z=0;//rot.z; //+=drotz;
+    world.rot.x=rot.x;
+    world.rot.y=rot.y;
+    world.rot.z=rot.z; //+=drotz;
     usleep(100000);
   }
   serialClose(fd);
