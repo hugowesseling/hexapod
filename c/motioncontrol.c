@@ -393,6 +393,9 @@ int main(int argc,char *argv[])
   Position rot=createPosition(0,0,0);
   bool scanDirectionRight=true;
   int modeCounter=0;
+  Command command;
+  bool commandActive=0;
+  int commandTicks=0;
 
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
@@ -412,6 +415,7 @@ int main(int argc,char *argv[])
         printf("Move command received: move(%f,%f) rot:%f for %d ticks\n",command.moveX,command.moveY,command.drotz,command.ticks);
         commandActive=1;
         commandTicks=0;
+      }
       //send acknowledgement
       //simplesocket_send(sock,".");
     }
@@ -435,6 +439,7 @@ int main(int argc,char *argv[])
     int mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
     if(commandActive)
     {
+      mode=M_WALKING; //override mode when executing command
       moveX=command.moveX;
       moveY=command.moveY;
       drotz=command.drotz;
@@ -513,9 +518,9 @@ int main(int argc,char *argv[])
 
     world.trans.x+=moveGroundX/6.0;
     world.trans.y+=moveGroundY/6.0;
-    world.rot.x=rot.x;
-    world.rot.y=rot.y;
-    world.rot.z=rot.z+=drotz;
+    world.rot.x=0;//rot.x;
+    world.rot.y=0;//rot.y;
+    world.rot.z+=drotz; // rot.z
     usleep(100000);
   }
   serialClose(fd);
