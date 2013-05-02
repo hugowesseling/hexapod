@@ -1,3 +1,6 @@
+// Next step: create long temporal command: walkfor <steps>
+// Command will execute, and send "Command End" upon completion
+
 #include <wiringSerial.h>
 #include <string.h>
 #include <stdio.h>
@@ -106,6 +109,14 @@ typedef struct T_Angles
   float h;
 } Angles;
 
+typedef struct T_Command
+{
+  float moveX;
+  float moveY;
+  float drotz;
+  int ticks;
+} Command;
+
 Leg createLeg(Position groundPos,Position jointPos,Position st4Pos,float coxaZeroRotation,int servoStartPos,bool isTripodA,bool previousOnGround)
 {
   Leg leg;
@@ -133,7 +144,7 @@ Position interpolatePosition(Position pos1,Position pos2,float alpha)
 }
 
 
-int sequenceMap[2][STEPCNT]={
+int tripodSeqMap[2][STEPCNT]={
 		{S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN},
 		{S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND} };
 
@@ -142,11 +153,12 @@ int sequenceMap[2][STEPCNT]={
 void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
 {
   int status=S_GROUND;
-  // leg->mode plays catch-up with mode given to this function. A leg has to run through part of the sequence before reaching a mode
+  // leg->mode plays catch-up with mode given to this function.
+  // A leg has to run through part of the sequence before reaching a mode
   switch(leg->mode)
   {
     case M_WALKING:
-      status=sequenceMap[leg->isTripodA][step];
+      status=tripodSeqMap[leg->isTripodA][step];
       break;
     case M_STAND6:
       status=S_GROUND;
@@ -394,6 +406,12 @@ int main(int argc,char *argv[])
         sscanf(lengthStringToReceive.buffer,"R %f %f %f",&rot.x,&rot.y,&rot.z);
         printf("New z rotation: %f\n",rot.z);
       }
+      if(lengthStringToReceive.buffer[0]=='W')
+      {
+        sscanf(lengthStringToReceive.buffer,"W %f %f %f %d",&command.moveX,&command.moveY,&command.drotz,&command.ticks);
+        printf("Move command received: move(%f,%f) rot:%f for %d ticks\n",command.moveX,command.moveY,command.drotz,command.ticks);
+        commandActive=1;
+        commandTicks=0;
       //send acknowledgement
       //simplesocket_send(sock,".");
     }
@@ -414,31 +432,46 @@ int main(int argc,char *argv[])
     }*/
     readvoltages(fd);
     dist=getDistance(fd);
-    float maxSpeed=4.0f,speed=0.0f;
-    if(dist>40)
+    int mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
+    if(commandActive)
     {
-      moveX=0.0f;
-      moveY=maxSpeed;
-      drotz=0.0f;
-      printf("FULL SPEED\n");
-    }else
-    if(dist>20)
-    {
-      moveX=0.0f;
-      moveY=0.5f*maxSpeed;
-      drotz=0.0f;
-      printf("HALF SPEED\n");
+      moveX=command.moveX;
+      moveY=command.moveY;
+      drotz=command.drotz;
+      commandTicks++;
+      if(commandTicks>command.ticks)
+      {
+        commandActive=0;
+        simplesocket_send(sock,"CE");  //command executed
+      }
     }else
     {
-      moveX=0.0f;
-      moveY=0.0f;;
-      drotz=0.02f;
-      printf("ROTATE\n");
+      float maxSpeed=4.0f,speed=0.0f;
+      if(dist>40)
+      {
+        moveX=0.0f;
+        moveY=maxSpeed;
+        drotz=0.0f;
+        printf("FULL SPEED\n");
+      }else
+      if(dist>20)
+      {
+        moveX=0.0f;
+        moveY=0.5f*maxSpeed;
+        drotz=0.0f;
+        printf("HALF SPEED\n");
+      }else
+      {
+        moveX=0.0f;
+        moveY=0.0f;;
+        drotz=0.02f;
+        printf("ROTATE\n");
+      }
     }
-    int mode=modeCounter<16?M_WALKING:M_STAND6;
     if(mode==M_STAND4 || mode==M_STAND6) //stop all movement if standing
     {
       moveX=moveY=0;
+      drotz=0;
     }
 
     float cosrz=cosf(-world.rot.z),sinrz=sinf(-world.rot.z);
@@ -482,7 +515,7 @@ int main(int argc,char *argv[])
     world.trans.y+=moveGroundY/6.0;
     world.rot.x=rot.x;
     world.rot.y=rot.y;
-    world.rot.z=rot.z; //+=drotz;
+    world.rot.z=rot.z+=drotz;
     usleep(100000);
   }
   serialClose(fd);
