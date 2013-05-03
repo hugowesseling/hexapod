@@ -23,6 +23,6 @@ while True:
     print "Received:",buf
     if buf=="CE":
       print "Received Command Executed"
-      getNextCommand=True
+      sendNextCommand=True
   time.sleep(0.5)
 
