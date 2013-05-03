@@ -453,6 +453,12 @@ int main(int argc,char *argv[])
       }
     }else
     {
+      moveX=0.0f;
+      moveY=0.0f;
+      drotz=0.0f;
+      mode=M_STAND6;
+    }
+/*    {
       float maxSpeed=4.0f,speed=0.0f;
       if(dist>40)
       {
@@ -474,7 +480,7 @@ int main(int argc,char *argv[])
         drotz=0.02f;
         printf("ROTATE\n");
       }
-    }
+    }*/
     if(mode==M_STAND4 || mode==M_STAND6) //stop all movement if standing
     {
       moveX=moveY=0;
