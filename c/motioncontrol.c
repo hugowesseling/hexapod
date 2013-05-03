@@ -443,6 +443,8 @@ int main(int argc,char *argv[])
       moveX=command.moveX;
       moveY=command.moveY;
       drotz=command.drotz;
+      printf("Command active, move,rot:(%g,%g,%g) tick: %d/%d\n",
+             moveX,moveY,drotz,commandTicks,command.ticks);
       commandTicks++;
       if(commandTicks>command.ticks)
       {
