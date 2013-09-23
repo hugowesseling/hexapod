@@ -10,6 +10,7 @@ sys.path.append(r"C:\opencv\build\python\2.7")
 import cv2
 import cv
 import time
+import cairo
 import numpy
 import math
 
@@ -44,6 +45,16 @@ def averageSideLength(p):
   #print "p:",p,"segments:",segments(p)
   return sum(math.hypot(x1-x0,y1-y0) for ((x0, y0), (x1, y1)) in segments(p)) / len(p)
 
+def getMidMarker(pts):
+  lenpts = len(pts)
+  if lenpts == 0:
+    return (0,0)
+  xmid,ymid = (0,0)
+  for x,y in pts:
+    xmid += x
+    ymid += y
+  return (xmid / lenpts, ymid / lenpts)
+
 def isSquare(pts):
   global SQUAREMARGIN
   if len(pts)!=4: return False
@@ -64,8 +75,10 @@ def isSquare(pts):
 def interpolatePoint(p1,p2,alpha):
   return (p1[0]*(1-alpha)+p2[0]*alpha, p1[1]*(1-alpha)+p2[1]*alpha)
 
+foundMarkers = []
+
 def scanPoints(img,pts,insideSize):
-  global names
+  global names, foundMarkers
   #print "pts:",pts
   #pt0 - pt1
   # |     |
@@ -115,11 +128,12 @@ def scanPoints(img,pts,insideSize):
           bits[12]* 512 + bits[13]*1024 + bits[14]*2048 + bits[15]*4096
     #print "Correct: bits:",bits
     #print "Value: ",value
+    middle=interpolatePoint(interpolatePoint(pts[0],pts[1],0.5),interpolatePoint(pts[2],pts[3],0.5),0.5)
     if value in names:
       name=names[value]
+      foundMarkers.append((value,middle,averageSideLength(pts)))
     else:
       name="%d"%value
-    middle=interpolatePoint(interpolatePoint(pts[0],pts[1],0.5),interpolatePoint(pts[2],pts[3],0.5),0.5)
     middle=(int(middle[0])-20,int(middle[1]))
     cv2.putText(img, name, middle, cv2.FONT_HERSHEY_PLAIN, 0.6, (255,255,255),2)
     cv2.putText(img, name, middle, cv2.FONT_HERSHEY_PLAIN, 0.6, (0,0,0),1)
@@ -134,6 +148,11 @@ else:
 #set the width and height
 cap.set(3,imageWidth)
 cap.set(4,imageHeight)
+analysisimg = numpy.zeros((200,200,4),numpy.uint8)
+surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
+cr = cairo.Context(surface)
+cr.set_source_rgb(1.0,1.0,1.0)
+cr.paint()
 
 while True:
     ret, img = cap.read()
@@ -142,6 +161,7 @@ while True:
     canny=cv2.Canny(imgGray,155,100) #200,555
     #cannydisplay=cv2.Canny(imgGray,555,200) #200,555
     contours, hierarchy = cv2.findContours(canny,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    foundMarkers=[]
     for contour in contours:
       approx=cv2.approxPolyDP(contour, cv2.arcLength(contour,True)*0.1, True) 
       if len(approx)==4:
@@ -161,7 +181,10 @@ while True:
       #else:
         #cv2.drawContours(img,approx,-1,(128,128,128),3)
     
+    if len(foundMarkers)==2:
+      print "Found 2 markers:",foundMarkers
     cv2.imshow("img", img)
+    cv2.imshow("analysis", analysisimg)
     #cv2.imshow("canny", cannydisplay)
     #time.sleep(0.1)
     cv2.waitKey(1)
