@@ -138,6 +138,19 @@ def scanPoints(img,pts,insideSize):
     cv2.putText(img, name, middle, cv2.FONT_HERSHEY_PLAIN, 0.6, (255,255,255),2)
     cv2.putText(img, name, middle, cv2.FONT_HERSHEY_PLAIN, 0.6, (0,0,0),1)
 
+def drawMarkerInfo(cr,size1,size2,x,dist):
+  cr.set_source_rgb(1.0,1.0,1.0)
+  cr.paint()
+  cr.set_source_rgb(1,0,0)
+  cr.move_to(100 - dist /6 ,100)
+  cr.line_to(100 + dist /6, 100)
+  cr.move_to(100 - dist /6, 100 - size1)
+  cr.line_to(100 - dist /6, 100)
+  cr.move_to(100 + dist /6, 100 - size2)
+  cr.line_to(100 + dist /6, 100)
+  cr.stroke()
+
+
 cap = cv2.VideoCapture(0)
 if cap.isOpened():
   print "Camera is opened!"
@@ -151,8 +164,6 @@ cap.set(4,imageHeight)
 analysisimg = numpy.zeros((200,200,4),numpy.uint8)
 surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
 cr = cairo.Context(surface)
-cr.set_source_rgb(1.0,1.0,1.0)
-cr.paint()
 
 while True:
     ret, img = cap.read()
@@ -182,8 +193,20 @@ while True:
         #cv2.drawContours(img,approx,-1,(128,128,128),3)
     
     if len(foundMarkers)==2:
-      print "Found 2 markers:",foundMarkers
-    cv2.imshow("img", img)
+      #extracting x,size1,size2,dist
+      ms=foundMarkers
+      x1,y1 = ms[0][1]
+      x2,y2 = ms[1][1]
+      x = (x1 + x2) / 2
+      dist = abs(x1 - x2)
+      size1 = ms[0][2]
+      size2 = ms[1][2]
+      if x1>x2:
+         size1,size2 = size2,size1
+      print "Found 2 markers:",ms
+      print "size1:%f, size2:%f, x:%f, dist:%f"%(size1,size2,x,dist)
+      drawMarkerInfo(cr,size1,size2,x,dist)
+    #cv2.imshow("img", img)
     cv2.imshow("analysis", analysisimg)
     #cv2.imshow("canny", cannydisplay)
     #time.sleep(0.1)
