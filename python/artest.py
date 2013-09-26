@@ -45,6 +45,10 @@ def averageSideLength(p):
   #print "p:",p,"segments:",segments(p)
   return sum(math.hypot(x1-x0,y1-y0) for ((x0, y0), (x1, y1)) in segments(p)) / len(p)
 
+def maxSideLength(p):
+  return max(math.hypot(x1-x0,y1-y0) for ((x0, y0), (x1, y1)) in segments(p))
+  
+
 def getMidMarker(pts):
   lenpts = len(pts)
   if lenpts == 0:
@@ -131,7 +135,7 @@ def scanPoints(img,pts,insideSize):
     middle=interpolatePoint(interpolatePoint(pts[0],pts[1],0.5),interpolatePoint(pts[2],pts[3],0.5),0.5)
     if value in names:
       name=names[value]
-      foundMarkers.append((value,middle,averageSideLength(pts)))
+      foundMarkers.append((value,middle,maxSideLength(pts)))
     else:
       name="%d"%value
     middle=(int(middle[0])-20,int(middle[1]))
@@ -149,7 +153,19 @@ def drawMarkerInfo(cr,size1,size2,x,dist):
   cr.move_to(100 + dist /6, 100 - size2)
   cr.line_to(100 + dist /6, 100)
   cr.stroke()
-
+  #1m dist: size1,2 = 72, dist = 240
+  z1 = 100 / (size1/72.0)  #in cm
+  z2 = 100 / (size2/72.0)
+  angle = math.atan2(z1-z2,40) #armarker dist = 40cm
+  zmid = 100 / (dist/math.cos(angle)/240.0)
+  xmid = x * zmid * 3 #Why *3 ?
+  print "xmid:",xmid
+  dx = math.cos(angle)*30
+  dy = math.sin(angle)*30
+  cr.set_source_rgb(0,1,0)
+  cr.move_to(100+xmid-dx,zmid-dy)
+  cr.line_to(100+xmid+dx,zmid+dy)
+  cr.stroke()
 
 cap = cv2.VideoCapture(0)
 if cap.isOpened():
@@ -197,7 +213,7 @@ while True:
       ms=foundMarkers
       x1,y1 = ms[0][1]
       x2,y2 = ms[1][1]
-      x = (x1 + x2) / 2
+      x = (x1 + x2) / 2 / imageWidth - 0.5  # x = -0.5 .. 0.5
       dist = abs(x1 - x2)
       size1 = ms[0][2]
       size2 = ms[1][2]
