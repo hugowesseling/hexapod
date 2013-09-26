@@ -152,20 +152,31 @@ def drawMarkerInfo(cr,size1,size2,x,dist):
   cr.line_to(100 - dist /6, 100)
   cr.move_to(100 + dist /6, 100 - size2)
   cr.line_to(100 + dist /6, 100)
+  cr.move_to(100, 95)
+  cr.line_to(100,105)
   cr.stroke()
   #1m dist: size1,2 = 72, dist = 240
   z1 = 100 / (size1/72.0)  #in cm
   z2 = 100 / (size2/72.0)
-  angle = math.atan2(z1-z2,40) #armarker dist = 40cm
+  angle = math.atan2(z2-z1,40) #armarker dist = 40cm
   zmid = 100 / (dist/math.cos(angle)/240.0)
-  xmid = x * zmid * 3 #Why *3 ?
+  xmid = x * zmid * 2 #Why *2 ?
   print "xmid:",xmid
   dx = math.cos(angle)*30
   dy = math.sin(angle)*30
   cr.set_source_rgb(0,1,0)
-  cr.move_to(100+xmid-dx,zmid-dy)
-  cr.line_to(100+xmid+dx,zmid+dy)
+  cr.move_to(100+xmid-dx,200 - (zmid-dy))
+  cr.line_to(100+xmid+dx,200 - (zmid+dy))
   cr.stroke()
+
+  #viewport lines
+  cr.set_source_rgb(0,0,1)
+  cr.move_to(100,200)
+  cr.line_to(0,100)
+  cr.move_to(100,200)
+  cr.line_to(200,100)
+  cr.stroke()
+
 
 cap = cv2.VideoCapture(0)
 if cap.isOpened():
