@@ -173,7 +173,7 @@ int singleLegSeqMap[6][SINGLELEGSTEPCNT]={
 int legNrToSeqMap[3][6]={
 	{1,0,1,0,1,0},
 	{0,1,2,2,1,0},
-	{0,2,4,5,3,1} };
+	{0,2,4,3,5,1} };
 
 #define TRIPODGAIT 0
 #define TWOMOVEGAIT 1
@@ -184,7 +184,7 @@ float maxMoveSpeeds[]={4.0f,3.0f,2.0f};
 
 //int ***seqMaps[3]={&tripodSeqMap,&twoMoveSeqMap,&singleLegSeqMap}; Doesn't work.
 
-int currentGait = SINGLELEGGAIT;
+int currentGait = TRIPODGAIT;
 
 
 int getLegStatus(int currentGait,int legNr,int step)
@@ -570,10 +570,10 @@ int main(int argc,char *argv[])
     if(pan>1800)pan=1800;
     snprintf(partialBuffer,30,"#0P%d #1P%d ",tilt,pan);
     strncat(serialBuffer,partialBuffer,1000);
-    printf("serialBuffer: %s\n",serialBuffer);
+    //printf("serialBuffer: %s\n",serialBuffer);
     strncat(serialBuffer,"T100\r",1000);
-    if(legCrossedBoundary)
-      printf("Crossed boundary!\n");
+    //if(legCrossedBoundary)
+      //printf("Crossed boundary!\n");
 
     serialPuts(fd,serialBuffer);
 
@@ -592,7 +592,7 @@ int main(int argc,char *argv[])
     world.rot.x=0;//rot.x;
     world.rot.y=0;//rot.y;
     world.rot.z+=drotz; // rot.z
-    usleep(100000);
+    usleep(50000);
   }
   serialClose(fd);
   close(sock);
