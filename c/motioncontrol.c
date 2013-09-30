@@ -94,7 +94,7 @@ float tibiaLength=13.0;
 typedef struct T_Leg
 {
   int servoStartPos;
-  bool isTripodA;
+  int legNr;
   bool previousOnGround;
   Position groundPos,neutralAirPos,st4Pos;
   Position tipPos;
@@ -120,11 +120,12 @@ typedef struct T_Command
   int ticks;
 } Command;
 
-Leg createLeg(Position groundPos,Position jointPos,Position st4Pos,float coxaZeroRotation,int servoStartPos,bool isTripodA,bool previousOnGround)
+Leg createLeg(Position groundPos,Position jointPos,Position st4Pos,
+	float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
 {
   Leg leg;
   leg.servoStartPos=servoStartPos;
-  leg.isTripodA=isTripodA;
+  leg.legNr=legNr;
   leg.previousOnGround=previousOnGround;
   leg.groundPos=groundPos;
   leg.st4Pos=st4Pos;
@@ -168,13 +169,46 @@ int singleLegSeqMap[6][SINGLELEGSTEPCNT]={
 	{S_GROUND,S_GROUND,S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN},
 	{S_MOVEDOWN,S_GROUND,S_GROUND,S_GROUND,S_GROUND,S_MOVEUP} };
 
+// leg order: left: front,mid,back, right:front,mid,back
+int legNrToSeqMap[3][6]={
+	{1,0,1,0,1,0},
+	{0,1,2,2,1,0},
+	{0,2,4,5,3,1} };
+
 #define TRIPODGAIT 0
 #define TWOMOVEGAIT 1
 #define SINGLELEGGAIT 2
 
-int *seqMaps[][]={tripodSeqMap,twoMoveSeqMap,singleLegSeqMap};
-
 int stepCounts[]={TRIPODSTEPCNT,TWOMOVESTEPCNT,SINGLELEGSTEPCNT};
+float maxMoveSpeeds[]={4.0f,3.0f,2.0f};
+
+//int ***seqMaps[3]={&tripodSeqMap,&twoMoveSeqMap,&singleLegSeqMap}; Doesn't work.
+
+int currentGait = SINGLELEGGAIT;
+
+
+int getLegStatus(int currentGait,int legNr,int step)
+{
+  switch(currentGait)
+  {
+  case TRIPODGAIT:
+    if(step<stepCounts[currentGait])
+      return tripodSeqMap[legNrToSeqMap[currentGait][legNr]][step];
+    break;
+  case TWOMOVEGAIT:
+    if(step<stepCounts[currentGait])
+      return twoMoveSeqMap[legNrToSeqMap[currentGait][legNr]][step];
+    break;
+  case SINGLELEGGAIT:
+    if(step<stepCounts[currentGait])
+      return singleLegSeqMap[legNrToSeqMap[currentGait][legNr]][step];
+    break;
+  }
+  printf("ERROR: getLegStatus(%d,%d,%d)\n",currentGait,legNr,step);
+  return 0;
+}
+
+
 
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
 void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
@@ -185,7 +219,8 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
   switch(leg->mode)
   {
     case M_WALKING:
-      status=tripodSeqMap[leg->isTripodA][step];
+//      status=tripodSeqMap[leg->isTripodA][step];
+      status=getLegStatus(currentGait,leg->legNr,step);
       break;
     case M_STAND6:
       status=S_GROUND;
@@ -396,14 +431,14 @@ int main(int argc,char *argv[])
 #define St4BY GndFBY
 
   //left legs (-x)
-  legs[0]=createLeg(createPosition(-GndFBX, -GndFBY,GndZ),createPosition(-JntFBX,-JntFBY,JntZ),createPosition(-St4FX, St4FY,GndZ),(-180+22)*M_PI/180,2,true, true);  //front
-  legs[1]=createLeg(createPosition(-GndMX,        0,GndZ),createPosition(-JntMX,       0,JntZ),createPosition(-St4MX, St4MY,GndZ),(-180   )*M_PI/180,5,false,true);  //mid
-  legs[2]=createLeg(createPosition(-GndFBX,  GndFBY,GndZ),createPosition(-JntFBX, JntFBY,JntZ),createPosition(-St4BX, St4BY,GndZ),(-180-22)*M_PI/180,8,true, true);  //back
+  legs[0]=createLeg(createPosition(-GndFBX, -GndFBY,GndZ),createPosition(-JntFBX,-JntFBY,JntZ),createPosition(-St4FX, St4FY,GndZ),(-180+22)*M_PI/180,2,0, true);  //front
+  legs[1]=createLeg(createPosition(-GndMX,        0,GndZ),createPosition(-JntMX,       0,JntZ),createPosition(-St4MX, St4MY,GndZ),(-180   )*M_PI/180,5,1,true);  //mid
+  legs[2]=createLeg(createPosition(-GndFBX,  GndFBY,GndZ),createPosition(-JntFBX, JntFBY,JntZ),createPosition(-St4BX, St4BY,GndZ),(-180-22)*M_PI/180,8,2, true);  //back
 
   //right legs (+x)
-  legs[3]=createLeg(createPosition( GndFBX, -GndFBY,GndZ),createPosition( JntFBX,-JntFBY,JntZ),createPosition( St4FX, St4FY,GndZ),     -22 *M_PI/180,16,false,true);   //back
-  legs[4]=createLeg(createPosition( GndMX,        0,GndZ),createPosition( JntMX,       0,JntZ),createPosition( St4MX, St4MY,GndZ),       0 *M_PI/180,19,true, true);   //mid
-  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,false,true);  //front   
+  legs[3]=createLeg(createPosition( GndFBX, -GndFBY,GndZ),createPosition( JntFBX,-JntFBY,JntZ),createPosition( St4FX, St4FY,GndZ),     -22 *M_PI/180,16,3,true);   //back
+  legs[4]=createLeg(createPosition( GndMX,        0,GndZ),createPosition( JntMX,       0,JntZ),createPosition( St4MX, St4MY,GndZ),       0 *M_PI/180,19,4, true);   //mid
+  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,5,true);  //front   
 
   printf("Starting\n");
   int fd=serialOpen((char *)"/dev/ttyAMA0",115200);
@@ -487,7 +522,7 @@ int main(int argc,char *argv[])
       mode=M_STAND6;
     }*/
     {
-      float maxSpeed=4.0f,speed=0.0f;
+      float maxSpeed=maxMoveSpeeds[currentGait],speed=0.0f;
       if(dist>40)
       {
         moveX=0.0f;
@@ -547,7 +582,7 @@ int main(int argc,char *argv[])
     {
       partial-=1;
       step++;
-      if(step>=STEPCNT)step=0;
+      if(step>=stepCounts[currentGait])step=0;
     }
     printf("Step: %d, partial: %g\n",step,partial);
     //move speed max = move(X,Y) / ( 8 / partialAdd) ?
