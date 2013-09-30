@@ -233,7 +233,7 @@ while True:
       print "Found 2 markers:",ms
       print "size1:%f, size2:%f, x:%f, dist:%f"%(size1,size2,x,dist)
       drawMarkerInfo(cr,size1,size2,x,dist)
-    #cv2.imshow("img", img)
+    cv2.imshow("img", img)
     cv2.imshow("analysis", analysisimg)
     #cv2.imshow("canny", cannydisplay)
     #time.sleep(0.1)
