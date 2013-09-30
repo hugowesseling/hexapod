@@ -31,7 +31,6 @@ const char *ZEROSTRING="#21PO-50 #7PO-20 #6PO-20 #8PO30 #16PO-20 #18PO30\r";
 #define S_MOVEUP 1
 #define S_MOVEDOWN 2
 
-#define STEPCNT 4
 
 typedef struct T_Position
 {
@@ -147,11 +146,35 @@ Position interpolatePosition(Position pos1,Position pos2,float alpha)
   return pos;
 }
 
+#define TRIPODSTEPCNT 4
+#define TWOMOVESTEPCNT 6
+#define SINGLELEGSTEPCNT 6
 
-int tripodSeqMap[2][STEPCNT]={
+
+int tripodSeqMap[2][TRIPODSTEPCNT]={
 		{S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN},
 		{S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND} };
 
+int twoMoveSeqMap[3][TWOMOVESTEPCNT]={
+		{S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND,S_GROUND,S_GROUND},
+		{S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND},
+		{S_GROUND,S_GROUND,S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN} };
+
+int singleLegSeqMap[6][SINGLELEGSTEPCNT]={
+	{S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND,S_GROUND,S_GROUND},
+	{S_GROUND,S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND,S_GROUND},
+	{S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN,S_GROUND,S_GROUND},
+	{S_GROUND,S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN,S_GROUND},
+	{S_GROUND,S_GROUND,S_GROUND,S_GROUND,S_MOVEUP,S_MOVEDOWN},
+	{S_MOVEDOWN,S_GROUND,S_GROUND,S_GROUND,S_GROUND,S_MOVEUP} };
+
+#define TRIPODGAIT 0
+#define TWOMOVEGAIT 1
+#define SINGLELEGGAIT 2
+
+int *seqMaps[][]={tripodSeqMap,twoMoveSeqMap,singleLegSeqMap};
+
+int stepCounts[]={TRIPODSTEPCNT,TWOMOVESTEPCNT,SINGLELEGSTEPCNT};
 
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
 void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
