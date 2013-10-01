@@ -112,12 +112,20 @@ typedef struct T_Angles
   float h;
 } Angles;
 
+enum
+{
+  Com_Move,
+  Com_Rotate
+};
+
 typedef struct T_Command
 {
+  int type;
   float moveX;
   float moveY;
   float drotz;
   int ticks;
+  Position rot;
 } Command;
 
 Leg createLeg(Position groundPos,Position jointPos,Position st4Pos,
@@ -403,14 +411,69 @@ void readvoltages(int fd)
   int voltage9V=serialGetchar(fd);
   printf("6V=%g, 9V=%g\n",10.0f*voltage6V/255,10.0f*voltage9V/255);
 }
+    /*
+    // Scanning
+    if(diffTime.tv_sec>=1)
+    {
+      lastScanTime=curTime;
+      if(scanDirectionRight)
+      {
+        serialPuts(fd,(char *)"#1 P1650 S300\r");
+      }else
+      {
+        serialPuts(fd,(char *)"#1 P1350 S300\r");
+      }
+      scanDirectionRight=!scanDirectionRight;
+    }*/
+
+void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World *world, int mode, float moveX, float moveY, Position headrot)
+{
+  char serialBuffer[1000];
+  char partialBuffer[31];
+  int i;
+  serialBuffer[0]=0;
+  printf("MODE: %d\n",mode);
+  for(i=0;i<LEGCNT;i++)
+  {
+     setSeqPos(&legs[i],step,partial,world,moveX,moveY,-8,mode);
+     getHexCommands(&legs[i],partialBuffer);
+     strncat(serialBuffer,partialBuffer,1000);
+  }
+  int tilt=1500-headrot.x*2000/M_PI;
+  int pan=1500-headrot.z*2000/M_PI;
+  if(tilt<1200)tilt=1200;
+  if(tilt>1800)tilt=1800;
+  if(pan<1200)pan=1200;
+  if(pan>1800)pan=1800;
+  snprintf(partialBuffer,30,"#0P%d #1P%d ",tilt,pan);
+  strncat(serialBuffer,partialBuffer,1000);
+  //printf("serialBuffer: %s\n",serialBuffer);
+  strncat(serialBuffer,"T100\r",1000);
+  //if(legCrossedBoundary)
+    //printf("Crossed boundary!\n");
+  serialPuts(serialHandle,serialBuffer);
+}
+
+void updateStepAndPartial(int *step, float *partial)
+{
+  // Update step and partial
+  *partial+=0.5;
+  if(*partial>=1)
+  {
+    *partial = *partial - 1;
+    *step = *step + 1;
+    if(*step>=stepCounts[currentGait])
+      *step=0;
+  }
+  printf("Step: %d, partial: %g\n",*step,*partial);
+}
 
 int main(int argc,char *argv[])
 {
   char buffer[256];
   struct LengthString lengthStringToReceive;
   int sock=simplesocket_create(12345);
-
-
+  Position headrot{0,0,0};
   struct timespec lastScanTime,curTime,diffTime;
   World world{{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
@@ -444,32 +507,33 @@ int main(int argc,char *argv[])
   int fd=serialOpen((char *)"/dev/ttyAMA0",115200);
   printf("serialOpen returns: %d\n",fd);
   if(fd==-1)exit(1);
-  char serialBuffer[1000];
-  char partialBuffer[31];
-  int i;
   int step=0;
   float partial=0;
   float moveX=0,moveY=0;
   float drotz=0;
   float dist;
-  Position rot=createPosition(0,0,0);
   bool scanDirectionRight=true;
   int modeCounter=0;
   Command command;
   bool commandActive=0;
   int commandTicks=0;
+  int mode = M_STAND4;
 
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
   {
+   // Receiving commands
     printf("Receiving..\n");
     if(simplesocket_receive(sock,&lengthStringToReceive))
     {
       printf("Received:%s\n",lengthStringToReceive.buffer);
       if(lengthStringToReceive.buffer[0]=='R')
       {
-        sscanf(lengthStringToReceive.buffer,"R %f %f %f",&rot.x,&rot.y,&rot.z);
-        printf("New z rotation: %f\n",rot.z);
+        sscanf(lengthStringToReceive.buffer,"R %f %f %f",&command.rot.x,&command.rot.y,&command.rot.z);
+        printf("New z rotation: %f\n",command.rot.z);
+        command.type = Com_Rotate;
+        commandActive = 1;
+        commandTicks = 0;
       }
       if(lengthStringToReceive.buffer[0]=='W')
       {
@@ -477,116 +541,87 @@ int main(int argc,char *argv[])
         printf("Move command received: move(%f,%f) rot:%f for %d ticks\n",command.moveX,command.moveY,command.drotz,command.ticks);
         commandActive=1;
         commandTicks=0;
+        command.type = Com_Move;
       }
-      //send acknowledgement
-      //simplesocket_send(sock,".");
     }
 
     clock_gettime(CLOCK_MONOTONIC,&curTime);
     diffTime=timespecDiff(lastScanTime,curTime);
-    /*if(diffTime.tv_sec>=1)
-    {
-      lastScanTime=curTime;
-      if(scanDirectionRight)
-      {
-        serialPuts(fd,(char *)"#1 P1650 S300\r");
-      }else
-      {
-        serialPuts(fd,(char *)"#1 P1350 S300\r");
-      }
-      scanDirectionRight=!scanDirectionRight;
-    }*/
+
     readvoltages(fd);
     dist=getDistance(fd);
-    int mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
+
+
+    // Command override
     if(commandActive)
     {
-      mode=M_WALKING; //override mode when executing command
-      moveX=command.moveX;
-      moveY=command.moveY;
-      drotz=command.drotz;
-      printf("Command active, move,rot:(%g,%g,%g) tick: %d/%d\n",
-             moveX,moveY,drotz,commandTicks,command.ticks);
-      commandTicks++;
-      if(commandTicks>command.ticks)
+      switch(command.type)
       {
-        commandActive=0;
-        simplesocket_send(sock,"CE");  //command executed
+      case Com_Move:
+        mode=M_WALKING; //override mode when executing command
+        moveX=command.moveX;
+        moveY=command.moveY;
+        drotz=command.drotz;
+        printf("Command active, move,rot:(%g,%g,%g) tick: %d/%d\n",
+               moveX,moveY,drotz,commandTicks,command.ticks);
+        commandTicks++;
+        if(commandTicks>command.ticks)
+        {
+          commandActive=0;
+          simplesocket_send(sock,"CE");  //command executed
+        }
+        break;
+      case Com_Rotate:
+        mode = M_STAND4; //will be overwritten
+        printf("Command active, rotating..");
+        headrot = command.rot;
+        break;
       }
     }
-/*else
+    if(!commandActive || command.type == Com_Rotate) // Only the rotate command can execute during standard behavior
     {
-      moveX=0.0f;
-      moveY=0.0f;
-      drotz=0.0f;
-      mode=M_STAND6;
-    }*/
-    {
+      modeCounter++;
+      mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
+      // Standard behavior
       float maxSpeed=maxMoveSpeeds[currentGait],speed=0.0f;
       if(dist>40)
       {
         moveX=0.0f;
         moveY=maxSpeed;
         drotz=0.0f;
-        printf("FULL SPEED\n");
+        //printf("FULL SPEED\n");
       }else
       if(dist>20)
       {
         moveX=0.0f;
         moveY=0.5f*maxSpeed;
         drotz=0.0f;
-        printf("HALF SPEED\n");
+        //printf("HALF SPEED\n");
       }else
       {
         moveX=0.0f;
         moveY=0.0f;;
         drotz=0.02f;
-        printf("ROTATE\n");
+        //printf("ROTATE\n");
       }
     }
+    printf ("moveX: %g, moveY: %g, drotz: %g\n",moveX,moveY,drotz);
     if(mode==M_STAND4 || mode==M_STAND6) //stop all movement if standing
     {
       moveX=moveY=0;
       drotz=0;
     }
 
+    sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headrot);
+
+    updateStepAndPartial(&step, &partial);
+
+
+    // Adjust world
     float cosrz=cosf(-world.rot.z),sinrz=sinf(-world.rot.z);
     float moveGroundX=moveX*cosrz+moveY*sinrz;
     float moveGroundY=moveY*cosrz-moveX*sinrz;
-    modeCounter++;
-    serialBuffer[0]=0;
-    printf("MODE: %d\n",mode);
-    for(i=0;i<LEGCNT;i++)
-    {
-       setSeqPos(&legs[i],step,partial,&world,moveX,moveY,-8,mode);
-       getHexCommands(&legs[i],partialBuffer);
-       strncat(serialBuffer,partialBuffer,1000);
-    }
-    int tilt=1500-rot.x*2000/M_PI;
-    int pan=1500-rot.z*2000/M_PI;
-    if(tilt<1200)tilt=1200;
-    if(tilt>1800)tilt=1800;
-    if(pan<1200)pan=1200;
-    if(pan>1800)pan=1800;
-    snprintf(partialBuffer,30,"#0P%d #1P%d ",tilt,pan);
-    strncat(serialBuffer,partialBuffer,1000);
-    //printf("serialBuffer: %s\n",serialBuffer);
-    strncat(serialBuffer,"T100\r",1000);
-    //if(legCrossedBoundary)
-      //printf("Crossed boundary!\n");
-
-    serialPuts(fd,serialBuffer);
-
-    partial+=0.5;
-    if(partial>=1)
-    {
-      partial-=1;
-      step++;
-      if(step>=stepCounts[currentGait])step=0;
-    }
-    printf("Step: %d, partial: %g\n",step,partial);
     //move speed max = move(X,Y) / ( 8 / partialAdd) ?
-
     world.trans.x+=moveGroundX/6.0;
     world.trans.y+=moveGroundY/6.0;
     world.rot.x=0;//rot.x;
