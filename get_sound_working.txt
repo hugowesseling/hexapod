@@ -1,0 +1,13 @@
+Followed the steps written in:
+http://jeffskinnerbox.wordpress.com/2012/11/15/getting-audio-out-working-on-the-raspberry-pi/
+Which are:
+sudo apt-get install alsa-utils
+sudo apt-get install mpg321
+sudo apt-get install lame
+lsmod
+-> Check if snd-bcm2835 is a module, if not found, execute:
+sudo modprobe snd-bcm2835
+-> Now enable analog out:
+amixer cset numid=3 1
+-> And play mpg321 xxx.mp3
+

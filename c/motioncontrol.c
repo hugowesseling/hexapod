@@ -192,7 +192,7 @@ float maxMoveSpeeds[]={4.0f,3.0f,2.0f};
 
 //int ***seqMaps[3]={&tripodSeqMap,&twoMoveSeqMap,&singleLegSeqMap}; Doesn't work.
 
-int currentGait = TRIPODGAIT;
+int currentGait = SINGLELEGGAIT;
 
 
 int getLegStatus(int currentGait,int legNr,int step)
