@@ -11,3 +11,6 @@ sudo modprobe snd-bcm2835
 amixer cset numid=3 1
 -> And play mpg321 xxx.mp3
 
+Audio level configurable with:
+amixer set PCM -- 1000 (=1000 = max, -10000 = min)
+
