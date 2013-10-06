@@ -13,7 +13,7 @@ while True:
     #rotz=math.sin(counter*0.20)*0.1
     #sock.send("R %f %f %f"%(rotx,roty,rotz))
     #sock.send(".")
-    sock.send("W 0.0 1.0 0.01 20")
+    sock.send("W 0.0 -1.0 -0.00 20")
     for i in range(20):
       print "Testing to receive"
       received,buf=sock.receive()

@@ -1,0 +1,18 @@
+Installed apache2:
+apt-get install apache2
+
+Added python handling as described in:
+http://raspberrywebserver.com/cgiscripting/writing-cgi-scripts-in-python.html
+(Write "AddHandler cgi-script .py" in one of the directory xml parts of /etc/apache2/sites-enabled/000-default)
+
+
+Allow execution of cgi scripts in that directory:
+Add "Options ExecCGI" to that directory xml part in the config file
+
+Restart server:
+service apache2 reload
+
+Now in each script write:
+#!/usr/bin/env python
+
+Make all the scripts executable (chmod +x *.py)
