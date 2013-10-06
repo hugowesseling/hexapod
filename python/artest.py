@@ -196,7 +196,7 @@ while True:
     ret, img = cap.read()
     print "cap.read():"+str(ret)
     imgGray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    canny=cv2.Canny(imgGray,155,100) #200,555
+    canny=cv2.Canny(imgGray,200,255) #worked okay until slightly upward tilted markers: 155,100 #200,555
     #cannydisplay=cv2.Canny(imgGray,555,200) #200,555
     contours, hierarchy = cv2.findContours(canny,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
     foundMarkers=[]
@@ -212,12 +212,12 @@ while True:
             #cv2.drawContours(img,approx,-1,(0,0,255),3)
             cv2.polylines(img, [approxPts], True,(0,0,255),1)
             scanPoints(img,approxPts,4)
-          #else:
-            #cv2.drawContours(img,approx,-1,(0,0,255),3)
-        #else:
-          #cv2.drawContours(img,approx,-1,(0,0,128),3)
-      #else:
-        #cv2.drawContours(img,approx,-1,(128,128,128),3)
+          else:
+            cv2.drawContours(img,approx,-1,(0,0,255),3)
+        else:
+          cv2.drawContours(img,approx,-1,(0,0,128),3)
+      else:
+        cv2.drawContours(img,approx,-1,(128,128,128),3)
     
     if len(foundMarkers)==2:
       #extracting x,size1,size2,dist
@@ -234,8 +234,8 @@ while True:
       print "size1:%f, size2:%f, x:%f, dist:%f"%(size1,size2,x,dist)
       drawMarkerInfo(cr,size1,size2,x,dist)
     cv2.imshow("img", img)
-    cv2.imshow("analysis", analysisimg)
-    #cv2.imshow("canny", cannydisplay)
+    #cv2.imshow("analysis", analysisimg)
+    cv2.imshow("canny", canny)
     #time.sleep(0.1)
     cv2.waitKey(1)
 
