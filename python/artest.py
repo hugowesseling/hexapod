@@ -1,4 +1,6 @@
 '''
+  Now refactor to enable call like:
+    distance,xpos,rotation = findMarkers(cap)
   Finds AR markers
   todo: 
     extract edges directly from Canny function
