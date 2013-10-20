@@ -13,6 +13,9 @@ import time
 import cairo
 import numpy
 import math
+import simplesocket
+
+sock = simplesocket.simplesocket(12345)
 
 imageWidth=640 #1280
 imageHeight=360 #720
@@ -234,8 +237,7 @@ def analyzeArMarkersInImage(img):
     #time.sleep(0.1)
     return (x,z,r)
 
-
-def main():
+def setupCapture():
   cap = cv2.VideoCapture(0)
   if cap.isOpened():
     print "Camera is opened!"
@@ -246,15 +248,40 @@ def main():
   #set the width and height
   cap.set(3,imageWidth)
   cap.set(4,imageHeight)
+  return cap
+
+
+def main():
+  #Setup
+  cap = setupCapture()
   analysisimg = numpy.zeros((200,200,4),numpy.uint8)
   surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
   cr = cairo.Context(surface)
+  captureDelayTime = 2 #estimated 2 second delay in capturing image
+
+  #Mainloop
   while True:
+    #Analyze camera picture
     ret, img = cap.read()
     print "cap.read():"+str(ret)
     x,z,r = analyzeArMarkersInImage(img)
     print "x:%r, z:%r, r:%r"%(x,z,r)
-    cv2.waitKey(1)
+    #Send new walking command
+    executeTime = 2
+    ticks = executeTime * 20 #50 ms sleep per tick
+    stringToSend = "W %g %g %g %d"%(dx,dy,dr,ticks)
+    print "Sending \"%s\""%stringToSend
+    sock.send(stringToSend)
+    #Wait until timer expires and check socket receiving in meantime
+    timeToWaitUntil = time.time() + executeTime + captureDelayTime
+    while time.time()<timeToWaitUntil:
+      received,buf = sock.receive()
+      if received:
+        print "Received:%r"%buf
+      time.sleep(0.1)
+    print "Sleeping after command done"
+    
+    
 
 #cv2.destroyAllWindows() 
 #cv2.VideoCapture(0).release()
