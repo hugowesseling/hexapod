@@ -15,7 +15,6 @@ import numpy
 import math
 import simplesocket
 
-sock = simplesocket.simplesocket(12345)
 
 imageWidth=640 #1280
 imageHeight=360 #720
@@ -253,11 +252,12 @@ def setupCapture():
 
 def main():
   #Setup
+  sock = simplesocket.simplesocket(12345)
   cap = setupCapture()
   analysisimg = numpy.zeros((200,200,4),numpy.uint8)
   surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
   cr = cairo.Context(surface)
-  captureDelayTime = 2 #estimated 2 second delay in capturing image
+  captureDelayTime = 1 #estimated 2 second delay in capturing image
 
   #Mainloop
   while True:
@@ -266,22 +266,30 @@ def main():
     print "cap.read():"+str(ret)
     x,z,r = analyzeArMarkersInImage(img)
     print "x:%r, z:%r, r:%r"%(x,z,r)
-    #Send new walking command
-    executeTime = 2
-    ticks = executeTime * 20 #50 ms sleep per tick
-    stringToSend = "W %g %g %g %d"%(dx,dy,dr,ticks)
-    print "Sending \"%s\""%stringToSend
-    sock.send(stringToSend)
-    #Wait until timer expires and check socket receiving in meantime
-    timeToWaitUntil = time.time() + executeTime + captureDelayTime
-    while time.time()<timeToWaitUntil:
-      received,buf = sock.receive()
-      if received:
-        print "Received:%r"%buf
-      time.sleep(0.1)
-    print "Sleeping after command done"
-    
-    
+    if not x is None:
+      #Send new walking command
+      dr = 0 #sorted((-0.1, r/10, 0.1))[1]
+      dx = sorted((-0.5, x/10, 0.5))[1]
+      dy = sorted((-1, (z-60)/10, 1))[1]
+      executeTime = 2
+      ticks = executeTime * 25 #50 ms sleep per tick
+      stringToSend = "W %g %g %g %d"%(dx,dy,dr,ticks)
+      print "Sending \"%s\" and then waiting %d seconds"%(stringToSend,executeTime+captureDelayTime)
+      sock.send(stringToSend)
+      #Wait until timer expires and check socket receiving in meantime
+      timeToWaitUntil = time.time() + executeTime
+      while time.time()<timeToWaitUntil:
+        received,buf = sock.receive()
+        if received:
+           print "Received:%r"%buf
+        time.sleep(0.1)
+      timeToWaitUntil = time.time() + captureDelayTime
+      while time.time()< timeToWaitUntil:
+        ret,img = cap.read()
+      print "Sleeping after command done"
+    else:
+      print "No markers detected"
+   
 
 #cv2.destroyAllWindows() 
 #cv2.VideoCapture(0).release()
