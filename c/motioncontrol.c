@@ -473,7 +473,7 @@ int main(int argc,char *argv[])
   char buffer[256];
   struct LengthString lengthStringToReceive;
   int sock=simplesocket_create(12345);
-  Position headrot{0,0,0};
+  Position headrot{-0.25,0,0};
   struct timespec lastScanTime,curTime,diffTime;
   World world{{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
@@ -581,7 +581,8 @@ int main(int argc,char *argv[])
     if(!commandActive || command.type == Com_Rotate) // Only the rotate command can execute during standard behavior
     {
       modeCounter++;
-      mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
+      //mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
+      mode = M_STAND6;
       // Standard behavior
       float maxSpeed=maxMoveSpeeds[currentGait],speed=0.0f;
       if(dist>40)
