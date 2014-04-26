@@ -19,4 +19,6 @@ git pull origin
 add github:
 git remote add origin https://github.com/hugowesseling/hexapod.git
 
+Clone from hexapod:
+git clone https://github.com/hugowesseling/hexapod.git
 
