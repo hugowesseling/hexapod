@@ -97,6 +97,7 @@ int serialClose(int fd)
 
 void serialPuts(int fd,char *sendstr)
 {
+	printf("Sending ***\n%s\n*** over serial fd:%d\n",sendstr,fd);
 	if(!fd)return;
 	int len = strlen(sendstr);
         write (fd, sendstr, len);

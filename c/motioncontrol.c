@@ -504,7 +504,7 @@ int main(int argc,char *argv[])
   legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,5,true);  //front   
 
   printf("Starting\n");
-  int fd=serialOpen((char *)"/dev/ttyAMA0",115200);
+  int fd=serialOpen((char *)"/dev/ttyUSB0",115200);
   printf("serialOpen returns: %d\n",fd);
   if(fd==-1)exit(1);
   int step=0;
