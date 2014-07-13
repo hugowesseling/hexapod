@@ -1,1 +1,1 @@
-g++ motioncontrol.c -o motioncontrol -l wiringPi -lrt -std=c++0x
+g++ motioncontrol.c -o motioncontrol -lrt -std=c++0x

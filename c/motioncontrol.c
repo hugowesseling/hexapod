@@ -5,7 +5,6 @@
 // Command will execute, and send "Command End" upon completion
 
 
-#include <wiringSerial.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -13,6 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "simplesocket.c"
+#include "serial_util.c"
 
 using namespace std;
 
