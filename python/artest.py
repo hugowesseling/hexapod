@@ -23,7 +23,8 @@ imageHeight=360 #720
 # 1.01 works well for straight viewing, 1.4 still recognized AR
 SQUAREMARGIN=1.4 
 
-names={7132:"Victini",6621:"Snivy",3037:"Servine",6486:"Serperior",2902:"Tepig",2391:"Pignite",6999:"Emboar",2398:"Oshawott",6495:"Samurott"}
+names={7132:"Victini",6621:"Snivy",3037:"Servine",6486:"Serperior",2902:"Tepig",2391:"Pignite",6999:"Emboar",2398:"Oshawott",6495:"Samurott",
+        471:"0123456789",4575:"bla2",3105:"bla3",982:"bla4",5086:"bla5",3616:"bla6"}
 
 
 def approxPoly2Pts(approxPoly):

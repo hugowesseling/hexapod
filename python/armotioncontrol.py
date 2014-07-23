@@ -23,7 +23,8 @@ imageHeight=360 #720
 # 1.01 works well for straight viewing, 1.4 still recognized AR
 SQUAREMARGIN=1.4 
 
-names={7132:"Victini",6621:"Snivy",3037:"Servine",6486:"Serperior",2902:"Tepig",2391:"Pignite",6999:"Emboar",2398:"Oshawott",6495:"Samurott"}
+names={7132:"Victini",6621:"Snivy",3037:"Servine",6486:"Serperior",2902:"Tepig",2391:"Pignite",6999:"Emboar",2398:"Oshawott",6495:"Samurott",
+       471:"0123456789",4575:"bla2",3105:"bla3",982:"bla4",5086:"bla5",3616:"bla6"}
 
 
 def approxPoly2Pts(approxPoly):
@@ -180,7 +181,7 @@ def drawMarkerInfo(cr,size1,size2,x,dist):
 
 
 def calculateXZRFromMarkerData(markers):
-  print "Found 2 markers:",markers
+  print "Found %d markers:"%len(markers),markers
   x1,y1 = markers[0][1]
   x2,y2 = markers[1][1]
   x = (x1 + x2) / 2 / imageWidth - 0.5  # x = -0.5 .. 0.5
@@ -226,7 +227,7 @@ def analyzeArMarkersInImage(img):
     x = None
     z = None
     r = None
-    if len(foundMarkers)==2:
+    if len(foundMarkers)>1:
       #extracting x,size1,size2,dist
       x,z,r = calculateXZRFromMarkerData(foundMarkers)
       #drawMarkerInfo(cr,size1,size2,x,dist)
