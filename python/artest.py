@@ -25,7 +25,11 @@ SQUAREMARGIN=1.4
 
 names={7132:"Victini",6621:"Snivy",3037:"Servine",6486:"Serperior",2902:"Tepig",2391:"Pignite",6999:"Emboar",2398:"Oshawott",6495:"Samurott",
         471:"0123456789",4575:"bla2",3105:"bla3",982:"bla4",5086:"bla5",3616:"bla6"}
-
+#1110
+#1001
+#1101
+#0000
+marker3dPoints={471:[[1,0,0],[0,0,0],[0,1,0],[1,1,0]]}
 
 def approxPoly2Pts(approxPoly):
   pts=[]
@@ -118,8 +122,13 @@ def scanPoints(img,pts,insideSize):
   #rotate until middle condition is correct
   correct=False
   for i in range(4):
+    #  0  1  2  3
+    #  4  5  6  7
+    #  8  9 10 11
+    # 12 13 14 15
     if bits[5]==bits[10] and bits[9]==1 and bits[6]==0:
       correct=True
+      rotatedTimes = i
       break
     #rotate bits CW
     newbits=[]
@@ -128,6 +137,13 @@ def scanPoints(img,pts,insideSize):
         # nx = y, ny = 3-x
         newbits.append(bits[4*(3-x)+y])
     bits=newbits
+    #rotate points CW
+    swappts = pts[0]
+    pts[0] = pts[1]
+    pts[1] = pts[2]
+    pts[2] = pts[3]
+    pts[3] = swappts
+    
   if correct:
     value=bits[ 0]      + bits[ 1]*   2 + bits[ 2]*   4 + bits[ 3]*   8 +\
           bits[ 4]*  16 + bits[ 5]*  32 +               + bits[ 7]*  64 +\
@@ -137,13 +153,19 @@ def scanPoints(img,pts,insideSize):
     #print "Value: ",value
     middle=interpolatePoint(interpolatePoint(pts[0],pts[1],0.5),interpolatePoint(pts[2],pts[3],0.5),0.5)
     if value in names:
-      name=names[value]
+      name = names[value]
       foundMarkers.append((value,middle,maxSideLength(pts)))
+      if value in marker3dPoints:
+        points3d = marker3dPoints[value]
+        calculateCamTest(pts,points3d,name,bits,rotatedTimes)
     else:
       name="%d"%value
     middle=(int(middle[0])-20,int(middle[1]))
     cv2.putText(img, name, middle, cv2.FONT_HERSHEY_PLAIN, 0.6, (255,255,255),2)
     cv2.putText(img, name, middle, cv2.FONT_HERSHEY_PLAIN, 0.6, (0,0,0),1)
+    
+def calculateCamTest(points2d,points3d,name,bits,rotatedTimes):
+  print "%s: points2d: %r, points3d: %r, rot: %d, bits: %r"%(name,points2d,points3d,rotatedTimes,bits)
 
 def drawMarkerInfo(cr,size1,size2,x,dist):
   cr.set_source_rgb(1.0,1.0,1.0)
@@ -238,7 +260,7 @@ while True:
       drawMarkerInfo(cr,size1,size2,x,dist)
     cv2.imshow("img", img)
     #cv2.imshow("analysis", analysisimg)
-    cv2.imshow("canny", canny)
+    #cv2.imshow("canny", canny)
     #time.sleep(0.1)
     cv2.waitKey(1)
 
