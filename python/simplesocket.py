@@ -15,7 +15,7 @@ class simplesocket:
         if becomeServer:
             print "No client found for port %d, becoming server"%port
             self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-            self.sock.bind((host, port))
+            self.sock.bind(("", port))
             self.sock.listen(5)
             c, addr = self.sock.accept() 
             self.sock=c
