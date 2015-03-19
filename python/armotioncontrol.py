@@ -231,7 +231,7 @@ def analyzeArMarkersInImage(img):
       #extracting x,size1,size2,dist
       x,z,r = calculateXZRFromMarkerData(foundMarkers)
       #drawMarkerInfo(cr,size1,size2,x,dist)
-    cv2.imshow("img", img)
+    #cv2.imshow("img", img)
     #cv2.imshow("analysis", analysisimg)
     #cv2.imshow("canny", canny)
     #time.sleep(0.1)
