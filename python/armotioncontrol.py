@@ -14,6 +14,7 @@ import cairo
 import numpy
 import math
 import simplesocket
+import gamepad_helper
 
 
 imageWidth=640 #1280
@@ -253,7 +254,7 @@ def setupCapture():
 
 def main():
   #Setup
-  sock = simplesocket.simplesocket(gamepad_helper)
+  sock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
   cap = setupCapture()
   analysisimg = numpy.zeros((200,200,4),numpy.uint8)
   surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
