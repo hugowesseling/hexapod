@@ -3,6 +3,8 @@ import sys
 import cv2
 import cv
 import time
+import simplesocket
+import simplemjpegsocket
 
 imageWidth=640 #1280
 imageHeight=360 #720
@@ -23,15 +25,14 @@ def setupCapture():
 
 
 cap = setupCapture()
-
+sock = simplemjpegsocket.create(8080)
 #Mainloop
 while True:
   #Analyze camera picture
   ret, img = cap.read()
   print "cap.read():"+str(ret)
-  ret,buf  = cv2.imencode('.jpg', img)
-  print "buf: %r"%buf
-  cv2.imshow("img", img)
+  simplemjpegsocket.send(sock, img)
+  #cv2.imshow("img", img)
   if cv2.waitKey(1) & 0xFF == ord('q'):
     break
 
