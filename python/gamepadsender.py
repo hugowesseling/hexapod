@@ -1,16 +1,18 @@
 import pygame
 import gamepad_helper
+import simplesocket
+import array
 
 def joystick2bytestring(joystick):
   #Parts to encode: axis 0-4, button 0-9, hat 0
   intArray = []
   for axis in range(0,5):
     axisValue = joystick.get_axis(axis)
-    axisByte = float01to255int(axisValue)
+    axisByte = gamepad_helper.float01to255int(axisValue)
     intArray.append(axisByte)
   byteString = array.array('B',intArray).tostring()
-  if len(byteString) != packetSize:
-    print "ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),packetSize)
+  if len(byteString) != gamepad_helper.packetSize:
+    print "ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),gamepad_helper.packetSize)
     exit(1)
   return byteString
 
@@ -63,6 +65,8 @@ pygame.joystick.init()
     
 # Get ready to print
 textPrint = TextPrint()
+
+sock = simplesocket.simplesocket(gamepad_helper.GP_PORT,gamepad_helper.TAU_IP)
 
 # -------- Main Program Loop -----------
 while done==False:
@@ -140,8 +144,9 @@ while done==False:
     
     # Go ahead and update the screen with what we've drawn.
     pygame.display.flip()
-    bytes = gamepad_helper.encode(joystick)
-    print "Bytes: %r"%bytes
+    bytestring = joystick2bytestring(joystick = pygame.joystick.Joystick(0))
+    print "bytestring: %r"%bytestring
+    sock.send(bytestring)
     # Limit to 20 frames per second
     clock.tick(20)
     

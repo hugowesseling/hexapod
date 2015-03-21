@@ -2,6 +2,7 @@ import math
 import array
 
 GP_PORT = 13254
+TAU_IP = '192.168.1.84'
 
 packetSize = 5 #+10+2
 

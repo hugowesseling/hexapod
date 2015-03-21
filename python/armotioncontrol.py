@@ -254,7 +254,8 @@ def setupCapture():
 
 def main():
   #Setup
-  sock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
+  #sock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
+  gamepadsock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
   cap = setupCapture()
   analysisimg = numpy.zeros((200,200,4),numpy.uint8)
   surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
@@ -263,6 +264,9 @@ def main():
 
   #Mainloop
   while True:
+    received,buf = gamepadsock.receive()
+      if received:
+         print "Received:%r"%buf
     #Analyze camera picture
     ret, img = cap.read()
     print "cap.read():"+str(ret)
@@ -277,13 +281,13 @@ def main():
       ticks = executeTime * 25 #50 ms sleep per tick
       stringToSend = "W %g %g %g %d"%(dx,dy,dr,ticks)
       print "Sending \"%s\" and then waiting %d seconds"%(stringToSend,executeTime+captureDelayTime)
-      sock.send(stringToSend)
+      #sock.send(stringToSend)
       #Wait until timer expires and check socket receiving in meantime
       timeToWaitUntil = time.time() + executeTime
       while time.time()<timeToWaitUntil:
-        received,buf = sock.receive()
-        if received:
-           print "Received:%r"%buf
+        #received,buf = sock.receive()
+        #if received:
+           #print "Received:%r"%buf
         time.sleep(0.1)
       timeToWaitUntil = time.time() + captureDelayTime
       while time.time()< timeToWaitUntil:

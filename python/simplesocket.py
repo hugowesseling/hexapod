@@ -4,10 +4,10 @@ import struct
 import select
 
 class simplesocket:
-    def __init__(self,port):
+    def __init__(self,port,hostip = "127.0.0.1"):
         becomeServer=False
         self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-        host=socket.gethostbyname("localhost")
+        host=hostip
         try:
             self.sock.connect((host,port))
         except socket.error:
@@ -26,9 +26,9 @@ class simplesocket:
             
     #Send and forget
     def send(self, msg):
+        print "Simplesocket: Sending packet with %d bytes"%len(msg)
         us32bit = struct.pack("I", len(msg))
         self.sock.send(us32bit)
-        
         totalsent = 0
         while totalsent < len(msg):
             sent = self.sock.send(msg[totalsent:])
