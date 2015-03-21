@@ -524,9 +524,9 @@ int main(int argc,char *argv[])
   {
    // Receiving commands
     printf("Receiving..\n");
-    if(simplesocket_receive(sock,&lengthStringToReceive))
+    while(simplesocket_receive(sock,&lengthStringToReceive))
     {
-      printf("Received:%s\n",lengthStringToReceive.buffer);
+      printf("Received:'%s'\n",lengthStringToReceive.buffer);
       if(lengthStringToReceive.buffer[0]=='R')
       {
         sscanf(lengthStringToReceive.buffer,"R %f %f %f",&command.rot.x,&command.rot.y,&command.rot.z);

@@ -254,7 +254,7 @@ def setupCapture():
 
 def main():
   #Setup
-  #sock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
+  motionsock = simplesocket.simplesocket(12345)
   gamepadsock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
   cap = setupCapture()
   analysisimg = numpy.zeros((200,200,4),numpy.uint8)
@@ -267,6 +267,14 @@ def main():
     received,buf = gamepadsock.receive()
     if received:
       print "Received:%r"%buf
+      print "Axisvalues: %3d,%3d,%3d,%3d,%3d"%(ord(buf[0]),ord(buf[1]),ord(buf[2]),ord(buf[3]),ord(buf[4]))
+      speedx = ord(buf[0])/256.0-0.5
+      speedy = ord(buf[1])/128.0-1.0
+      print "Speed x,y: (%f,%f)=(%g,%g)"%(speedx,speedy,speedx,speedy)
+      stringToSend = "W %g %g %g %d"%(speedx,speedy,0,1*25)
+      print "Sending '%s'"%stringToSend
+      motionsock.send(stringToSend)
+"""
     #Analyze camera picture
     ret, img = cap.read()
     print "cap.read():"+str(ret)
@@ -295,7 +303,7 @@ def main():
       print "Sleeping after command done"
     else:
       print "No markers detected"
-   
+"""   
 
 #cv2.destroyAllWindows() 
 #cv2.VideoCapture(0).release()
