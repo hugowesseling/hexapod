@@ -1,0 +1,3 @@
+python python/armotioncontrol.py &
+sleep 3
+c/motioncontrol
