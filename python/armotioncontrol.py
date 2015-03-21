@@ -265,8 +265,8 @@ def main():
   #Mainloop
   while True:
     received,buf = gamepadsock.receive()
-      if received:
-         print "Received:%r"%buf
+    if received:
+      print "Received:%r"%buf
     #Analyze camera picture
     ret, img = cap.read()
     print "cap.read():"+str(ret)
