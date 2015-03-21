@@ -1,6 +1,20 @@
 import pygame
 import gamepad_helper
 
+def joystick2bytestring(joystick):
+  #Parts to encode: axis 0-4, button 0-9, hat 0
+  intArray = []
+  for axis in range(0,5):
+    axisValue = joystick.get_axis(axis)
+    axisByte = float01to255int(axisValue)
+    intArray.append(axisByte)
+  byteString = array.array('B',intArray).tostring()
+  if len(byteString) != packetSize:
+    print "ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),packetSize)
+    exit(1)
+  return byteString
+
+
 # Define some colors
 BLACK    = (   0,   0,   0)
 WHITE    = ( 255, 255, 255)

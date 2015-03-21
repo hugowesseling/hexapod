@@ -253,7 +253,7 @@ def setupCapture():
 
 def main():
   #Setup
-  sock = simplesocket.simplesocket(12345)
+  sock = simplesocket.simplesocket(gamepad_helper)
   cap = setupCapture()
   analysisimg = numpy.zeros((200,200,4),numpy.uint8)
   surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
