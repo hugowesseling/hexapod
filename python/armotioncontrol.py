@@ -268,11 +268,14 @@ def main():
     if received:
       print "Received:%r"%buf
       print "Axisvalues: %3d,%3d,%3d,%3d,%3d"%(ord(buf[0]),ord(buf[1]),ord(buf[2]),ord(buf[3]),ord(buf[4]))
-      speedx = ord(buf[0])/256.0-0.5
-      speedy = ord(buf[1])/128.0-1.0
-      print "Speed x,y: (%f,%f)=(%g,%g)"%(speedx,speedy,speedx,speedy)
-      stringToSend = "W %g %g %g %d"%(speedx,speedy,0,1*25)
-      print "Sending '%s'"%stringToSend
+      speedx = ord(buf[0])/-64.0+2.0
+      speedy = ord(buf[1])/-32.0+4.0
+      print "Speed x,y: (%g,%g)"%(speedx,speedy)
+      if math.hypot(speedx,speedy)>0.4:
+        stringToSend = "W %g %g %g %d"%(speedx,speedy,0,1*25)
+      else:
+        stringToSend = "R 0 0 0"
+      print "stringToSend: '%s'"%stringToSend
       motionsock.send(stringToSend)
 """
     #Analyze camera picture
