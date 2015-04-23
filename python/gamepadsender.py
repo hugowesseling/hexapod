@@ -6,10 +6,16 @@ import array
 def joystick2bytestring(joystick):
   #Parts to encode: axis 0-4, button 0-9, hat 0
   intArray = []
+  #axes 0-4
   for axis in range(0,5):
     axisValue = joystick.get_axis(axis)
     axisByte = gamepad_helper.float01to255int(axisValue)
     intArray.append(axisByte)
+  #button 0-9
+  for button in range(0,10):
+    buttonValue = joystick.get_button(button)
+	buttonByte = 1 if buttonValue else 0
+	intArray.append(buttonByte)
   byteString = array.array('B',intArray).tostring()
   if len(byteString) != gamepad_helper.packetSize:
     print "ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),gamepad_helper.packetSize)
