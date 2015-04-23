@@ -268,6 +268,8 @@ def main():
     if received:
       print "Received:%r"%buf
       print "Axisvalues: %3d,%3d,%3d,%3d,%3d"%(ord(buf[0]),ord(buf[1]),ord(buf[2]),ord(buf[3]),ord(buf[4]))
+      print "Buttonvalues: %2d,%2d,%2d,%2d, %2d,%2d,%2d,%2d, %2d,%2d"%(ord(buf[5]),ord(buf[6]),ord(buf[7]),ord(buf[8]), ord(buf[9]),ord(buf[10]),ord(buf[11]),ord(buf[12]), ord(buf[13]),ord(buf[14]))
+
       speedx = ord(buf[0])/-64.0+2.0
       speedy = ord(buf[1])/-32.0+4.0
       print "Speed x,y: (%g,%g)"%(speedx,speedy)
