@@ -553,7 +553,7 @@ int main(int argc,char *argv[])
       }
       if(lengthStringToReceive.buffer[0]=='S')
       {
-        int standtype;
+        int standtype = 0;
         sscanf(lengthStringToReceive.buffer,"S %d",&standtype);
         commandActive = 1;
         commandTicks = 0;
@@ -561,6 +561,17 @@ int main(int argc,char *argv[])
 	  command.type = Com_Stand4;
         else
           command.type = Com_Stand6;
+      }
+      if(lengthStringToReceive.buffer[0]=='G') // change gait
+      {
+        int gaitType = 0;
+        sscanf(lengthStringToReceive.buffer,"G %d",&gaitType);
+        if(gaitType == 0)
+          currentGait = TRIPODGAIT;
+        else if(gaitType == 1)
+          currentGait = TWOMOVEGAIT;
+        else
+          currentGait = SINGLELEGGAIT;
       }
     }
 

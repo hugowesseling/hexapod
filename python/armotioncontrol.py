@@ -251,7 +251,6 @@ def setupCapture():
   cap.set(4,imageHeight)
   return cap
 
-
 def main():
   #Setup
   motionsock = simplesocket.simplesocket(12345)
@@ -261,6 +260,8 @@ def main():
   surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
   cr = cairo.Context(surface)
   captureDelayTime = 1 #estimated 2 second delay in capturing image
+  lastbutton1 = False
+  currentGait = 0
 
   #Mainloop
   while True:
@@ -270,7 +271,9 @@ def main():
       print "Axisvalues: %3d,%3d,%3d,%3d,%3d"%(ord(buf[0]),ord(buf[1]),ord(buf[2]),ord(buf[3]),ord(buf[4]))
       print "Buttonvalues: %2d,%2d,%2d,%2d, %2d,%2d,%2d,%2d, %2d,%2d"%(ord(buf[5]),ord(buf[6]),ord(buf[7]),ord(buf[8]), ord(buf[9]),ord(buf[10]),ord(buf[11]),ord(buf[12]), ord(buf[13]),ord(buf[14]))
 
-      if ord(buf[5]) != 0:
+      button0 = (ord(buf[5]) != 0)
+      button1 = (ord(buf[6]) != 0)
+      if button0:
         stringToSend = "S 4"
       else:
         speedx = ord(buf[0])/-64.0+2.0
@@ -280,6 +283,15 @@ def main():
           stringToSend = "W %g %g %g %d"%(speedx,speedy,0,1*25)
         else:
           stringToSend = "R 0 0 0"
+      if button1:
+        if not lastbutton1:
+          lastbutton1 = True
+          currentGait += 1
+          if currentGait > 2:
+            currentGait = 0
+        stringToSend = "G %d"%currentGait
+      else:
+        lastbutton1 = False
       print "stringToSend: '%s'"%stringToSend
       motionsock.send(stringToSend)
 """
