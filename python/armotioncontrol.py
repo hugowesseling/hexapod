@@ -270,7 +270,7 @@ def main():
       print "Axisvalues: %3d,%3d,%3d,%3d,%3d"%(ord(buf[0]),ord(buf[1]),ord(buf[2]),ord(buf[3]),ord(buf[4]))
       print "Buttonvalues: %2d,%2d,%2d,%2d, %2d,%2d,%2d,%2d, %2d,%2d"%(ord(buf[5]),ord(buf[6]),ord(buf[7]),ord(buf[8]), ord(buf[9]),ord(buf[10]),ord(buf[11]),ord(buf[12]), ord(buf[13]),ord(buf[14]))
 
-      if buf[5]:
+      if ord(buf[5]) != 0:
         stringToSend = "S 4"
       else:
         speedx = ord(buf[0])/-64.0+2.0
