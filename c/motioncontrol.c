@@ -455,6 +455,10 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
     //printf("Crossed boundary!\n");
   serialPuts(serialHandle,serialBuffer);
 }
+void sendZeroString(int serialHandle)
+{
+  serialPuts(serialHandle,ZEROSTRING);
+}
 
 void updateStepAndPartial(int *step, float *partial)
 {
@@ -508,6 +512,8 @@ int main(int argc,char *argv[])
   printf("Starting\n");
   int fd=serialOpen((char *)"/dev/ttyUSB0",115200);
   printf("serialOpen returns: %d\n",fd);
+  usleep(100000);
+  sendZeroString(fd);
   if(fd==-1)exit(1);
   int step=0;
   float partial=0;
