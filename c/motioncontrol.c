@@ -115,7 +115,9 @@ typedef struct T_Angles
 enum
 {
   Com_Move,
-  Com_Rotate
+  Com_Rotate,
+  Com_Stand4,
+  Com_Stand6
 };
 
 typedef struct T_Command
@@ -543,6 +545,17 @@ int main(int argc,char *argv[])
         commandTicks=0;
         command.type = Com_Move;
       }
+      if(lengthStringToReceive.buffer[0]=='S')
+      {
+        int standtype;
+        sscanf(lengthStringToReceive.buffer,"S %d",&standtype);
+        commandActive = 1;
+        commandTicks = 0;
+        if(standtype == 4)
+	  command.type = Com_Stand4;
+        else
+          command.type = Com_Stand6;
+      }
     }
 
     clock_gettime(CLOCK_MONOTONIC,&curTime);
@@ -572,13 +585,21 @@ int main(int argc,char *argv[])
         }
         break;
       case Com_Rotate:
-        mode = M_STAND4; //will be overwritten
+        mode = M_STAND6; //will be overwritten
         printf("Command active, rotating..");
         headrot = command.rot;
         break;
+      case Com_Stand4:
+        mode = M_STAND4;
+        printf("Command active, stand4-ing..");
+        break;
+      case Com_Stand6:
+        mode = M_STAND6;
+        printf("Command active, stand6-ing..");
+        break;
       }
     }
-    if(!commandActive || command.type == Com_Rotate) // Only the rotate command can execute during standard behavior
+    if(!commandActive) // Only the rotate command can execute during standard behavior
     {
       modeCounter++;
       //mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
