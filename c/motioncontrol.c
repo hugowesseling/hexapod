@@ -192,7 +192,7 @@ int legNrToSeqMap[3][6]={
 #define SINGLELEGGAIT 2
 
 int stepCounts[]={TRIPODSTEPCNT,TWOMOVESTEPCNT,SINGLELEGSTEPCNT};
-float maxMoveSpeeds[]={4.0f,3.0f,2.0f};
+float maxMoveSpeeds[]={3.5f,2.5f,1.5f};
 
 //int ***seqMaps[3]={&tripodSeqMap,&twoMoveSeqMap,&singleLegSeqMap}; Doesn't work.
 
@@ -436,7 +436,7 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
   char partialBuffer[31];
   int i;
   serialBuffer[0]=0;
-  printf("MODE: %d\n",mode);
+  //printf("MODE: %d\n",mode);
   for(i=0;i<LEGCNT;i++)
   {
      setSeqPos(&legs[i],step,partial,world,moveX,moveY,-8,mode);
@@ -535,6 +535,7 @@ int main(int argc,char *argv[])
   int commandTicks=0;
   int mode = M_STAND4;
   int servosPowered = 0;
+  float maxSpeed = 0;
 
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
@@ -595,6 +596,7 @@ int main(int argc,char *argv[])
 
     readvoltages(fd);
     dist=getDistance(fd);
+    maxSpeed = maxMoveSpeeds[currentGait];
 
 
     // Command override
@@ -604,10 +606,10 @@ int main(int argc,char *argv[])
       {
       case Com_Move:
         mode=M_WALKING; //override mode when executing command
-        moveX=command.moveX;
-        moveY=command.moveY;
+        moveX=command.moveX*maxSpeed;
+        moveY=command.moveY*maxSpeed;
         drotz=command.drotz;
-        printf("Command active, move,rot:(%g,%g,%g) tick: %d/%d\n",
+        printf("Command active, move,rot:(%g,%g),%g tick: %d/%d\n",
                moveX,moveY,drotz,commandTicks,command.ticks);
         commandTicks++;
         if(commandTicks>command.ticks)
@@ -638,7 +640,7 @@ int main(int argc,char *argv[])
       //mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
       mode = M_STAND6;
       // Standard behavior
-      float maxSpeed=maxMoveSpeeds[currentGait],speed=0.0f;
+      float speed=0.0f;
       if(dist>40)
       {
         moveX=0.0f;

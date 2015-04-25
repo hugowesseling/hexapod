@@ -288,8 +288,8 @@ def main():
         if button0:
           stringToSend = "S 4"
         else:
-          speedx = ord(buf[0])/-64.0+2.0
-          speedy = ord(buf[1])/-32.0+4.0
+          speedx = ord(buf[0])/-128.0+1.0
+          speedy = ord(buf[1])/-64.0+2.0
           print "Speed x,y: (%g,%g)"%(speedx,speedy)
           if math.hypot(speedx,speedy)>0.4:
             stringToSend = "W %g %g %g %d"%(speedx,speedy,0,1*25)
