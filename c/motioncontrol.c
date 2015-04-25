@@ -19,6 +19,8 @@ using namespace std;
 bool legCrossedBoundary=false;
 
 const char *ZEROSTRING="#21PO-50 #7PO-20 #6PO-20 #8PO30 #16PO-20 #18PO30\r";
+const char *POWEREDDOWNSTRING="#0L #1L #2L #3L #4L #5L #6L #7L #8L #9L #10L #11L #12L #13L #14L #15L #16L #17L #18L #19L #20L #21L #22L #23L #24L #25L #26L #27L #28L #29L #30L #31L \r";
+
 #define LEGCNT 6
 
 //gait modes
@@ -455,6 +457,12 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
     //printf("Crossed boundary!\n");
   serialPuts(serialHandle,serialBuffer);
 }
+
+void sendPoweredDown(int serialHandle)
+{
+  serialPuts(serialHandle,POWEREDDOWNSTRING);
+}
+
 void sendZeroString(int serialHandle)
 {
   serialPuts(serialHandle,ZEROSTRING);
@@ -479,7 +487,7 @@ int main(int argc,char *argv[])
   char buffer[256];
   struct LengthString lengthStringToReceive;
   int sock=simplesocket_create(12345);
-  Position headrot{-0.25,0,0};
+  Position headrot{-0.25,0,0},rot{0,0,0};
   struct timespec lastScanTime,curTime,diffTime;
   World world{{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
@@ -526,6 +534,7 @@ int main(int argc,char *argv[])
   bool commandActive=0;
   int commandTicks=0;
   int mode = M_STAND4;
+  int servosPowered = 0;
 
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
@@ -535,10 +544,16 @@ int main(int argc,char *argv[])
     while(simplesocket_receive(sock,&lengthStringToReceive))
     {
       printf("Received:'%s'\n",lengthStringToReceive.buffer);
+      if(lengthStringToReceive.buffer[0]=='P')
+      {
+        int powerUpOrDown = 0;
+        sscanf(lengthStringToReceive.buffer,"P %d",&powerUpOrDown);
+        servosPowered = !!powerUpOrDown;
+      }
       if(lengthStringToReceive.buffer[0]=='R')
       {
         sscanf(lengthStringToReceive.buffer,"R %f %f %f",&command.rot.x,&command.rot.y,&command.rot.z);
-        printf("New z rotation: %f\n",command.rot.z);
+        printf("New x,y,z rotation: %f,%f,%f\n",command.rot.x,command.rot.y,command.rot.z);
         command.type = Com_Rotate;
         commandActive = 1;
         commandTicks = 0;
@@ -605,6 +620,7 @@ int main(int argc,char *argv[])
         mode = M_STAND6; //will be overwritten
         printf("Command active, rotating..");
         headrot = command.rot;
+        rot = command.rot;
         break;
       case Com_Stand4:
         mode = M_STAND4;
@@ -651,7 +667,10 @@ int main(int argc,char *argv[])
       drotz=0;
     }
 
-    sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headrot);
+    if(servosPowered)
+      sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headrot);
+    else
+      sendPoweredDown(fd);
 
     updateStepAndPartial(&step, &partial);
 
@@ -663,9 +682,9 @@ int main(int argc,char *argv[])
     //move speed max = move(X,Y) / ( 8 / partialAdd) ?
     world.trans.x+=moveGroundX/6.0;
     world.trans.y+=moveGroundY/6.0;
-    world.rot.x=0;//rot.x;
-    world.rot.y=0;//rot.y;
-    world.rot.z+=drotz; // rot.z
+    world.rot.x=rot.x;
+    world.rot.y=rot.y;
+    world.rot.z=rot.z; // +=drotz
     usleep(50000);
   }
   serialClose(fd);
