@@ -127,13 +127,13 @@ typedef struct T_Command
   int type;
   float moveX;
   float moveY;
+  float moveZ;
   float drotz;
   int ticks;
   Position rot;
 } Command;
 
-Leg createLeg(Position groundPos,Position jointPos,Position st4Pos,
-	float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
+Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
 {
   Leg leg;
   leg.servoStartPos=servoStartPos;
@@ -194,6 +194,7 @@ int legNrToSeqMap[3][6]={
 int stepCounts[]={TRIPODSTEPCNT,TWOMOVESTEPCNT,SINGLELEGSTEPCNT};
 float maxMoveSpeeds[]={3.5f,2.5f,1.5f};
 
+
 //int ***seqMaps[3]={&tripodSeqMap,&twoMoveSeqMap,&singleLegSeqMap}; Doesn't work.
 
 int currentGait = SINGLELEGGAIT;
@@ -221,6 +222,7 @@ int getLegStatus(int currentGait,int legNr,int step)
 }
 
 
+Position frontLegPos{0,0,0};
 
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
 void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
@@ -245,6 +247,12 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
   {
     case S_GROUND:
       leg->tipPos= worldToPod(world,leg->groundPos);
+      if(leg->legNr==0) //front leg
+      {
+        leg->tipPos.x += frontLegPos.x;
+        leg->tipPos.y += frontLegPos.y;
+        leg->tipPos.z += frontLegPos.z;
+      }
       //leg can only change it's mode to M_STAND6 or M_STAND4 if the groundposition is correct for that mode
       if( (mode==M_WALKING) || ((mode==M_STAND6 || mode==M_STAND4) && leg->groundPositionForMode==mode) )
         leg->mode=mode;
@@ -507,6 +515,7 @@ int main(int argc,char *argv[])
 #define St4MY -6
 #define St4BY GndFBY
 
+  //Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
   //left legs (-x)
   legs[0]=createLeg(createPosition(-GndFBX, -GndFBY,GndZ),createPosition(-JntFBX,-JntFBY,JntZ),createPosition(-St4FX, St4FY,GndZ),(-180+22)*M_PI/180,2,0, true);  //front
   legs[1]=createLeg(createPosition(-GndMX,        0,GndZ),createPosition(-JntMX,       0,JntZ),createPosition(-St4MX, St4MY,GndZ),(-180   )*M_PI/180,5,1,true);  //mid
@@ -515,7 +524,7 @@ int main(int argc,char *argv[])
   //right legs (+x)
   legs[3]=createLeg(createPosition( GndFBX, -GndFBY,GndZ),createPosition( JntFBX,-JntFBY,JntZ),createPosition( St4FX, St4FY,GndZ),     -22 *M_PI/180,16,3,true);   //back
   legs[4]=createLeg(createPosition( GndMX,        0,GndZ),createPosition( JntMX,       0,JntZ),createPosition( St4MX, St4MY,GndZ),       0 *M_PI/180,19,4, true);   //mid
-  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,5,true);  //front   
+  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,5,true);  //front
 
   printf("Starting\n");
   int fd=serialOpen((char *)"/dev/ttyUSB0",115200);
@@ -570,7 +579,7 @@ int main(int argc,char *argv[])
       if(lengthStringToReceive.buffer[0]=='S')
       {
         int standtype = 0;
-        sscanf(lengthStringToReceive.buffer,"S %d",&standtype);
+        sscanf(lengthStringToReceive.buffer,"S %d %f %f %f", &standtype, &command.moveX, &command.moveY, &command.moveZ);
         commandActive = 1;
         commandTicks = 0;
         if(standtype == 4)
@@ -602,6 +611,9 @@ int main(int argc,char *argv[])
     // Command override
     if(commandActive)
     {
+      frontLegPos.x = 0;
+      frontLegPos.y = 0;
+      frontLegPos.z = 0;
       switch(command.type)
       {
       case Com_Move:
@@ -627,6 +639,9 @@ int main(int argc,char *argv[])
       case Com_Stand4:
         mode = M_STAND4;
         printf("Command active, stand4-ing..");
+        frontLegPos.x = command.moveX;
+        frontLegPos.y = command.moveY;
+        frontLegPos.z = command.moveZ;
         break;
       case Com_Stand6:
         mode = M_STAND6;

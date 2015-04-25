@@ -286,7 +286,10 @@ def main():
         lastbutton2 = False
       if stringToSend == "":
         if button0:
-          stringToSend = "S 4"
+          legMoveX = ord(buf[0])/32.0-2.0 #-2 .. 6
+          legMoveY = ord(buf[2])/32.0-6.0 #-6 .. 2
+          legMoveZ = ord(buf[1])/32.0-1.0 #-1 .. 7
+          stringToSend = "S 4 %g %g %g"%(legMoveX,legMoveY,legMoveZ)
         else:
           speedx = ord(buf[0])/-128.0+1.0
           speedy = ord(buf[1])/-64.0+2.0
@@ -297,7 +300,8 @@ def main():
             rotx = (ord(buf[3])/128.0-1.0)*0.25
             roty = 0
             rotz = (ord(buf[4])/128.0-1.0)*0.25
-            stringToSend = "R %g %g %g"%(rotx,roty,rotz)
+            height = ord(buf[2])/128.0-1.0
+            stringToSend = "R %g %g %g %g"%(rotx,roty,rotz,height)
         if button1:
           if not lastbutton1:
             lastbutton1 = True
