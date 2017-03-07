@@ -19,6 +19,8 @@ using namespace std;
 bool legCrossedBoundary=false;
 
 const char *ZEROSTRING="#21PO-50 #7PO-20 #6PO-20 #8PO30 #16PO-20 #18PO30\r";
+const char *POWEREDDOWNSTRING="#0L #1L #2L #3L #4L #5L #6L #7L #8L #9L #10L #11L #12L #13L #14L #15L #16L #17L #18L #19L #20L #21L #22L #23L #24L #25L #26L #27L #28L #29L #30L #31L \r";
+
 #define LEGCNT 6
 
 //gait modes
@@ -115,7 +117,9 @@ typedef struct T_Angles
 enum
 {
   Com_Move,
-  Com_Rotate
+  Com_Rotate,
+  Com_Stand4,
+  Com_Stand6
 };
 
 typedef struct T_Command
@@ -123,13 +127,13 @@ typedef struct T_Command
   int type;
   float moveX;
   float moveY;
+  float moveZ;
   float drotz;
   int ticks;
   Position rot;
 } Command;
 
-Leg createLeg(Position groundPos,Position jointPos,Position st4Pos,
-	float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
+Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
 {
   Leg leg;
   leg.servoStartPos=servoStartPos;
@@ -188,7 +192,8 @@ int legNrToSeqMap[3][6]={
 #define SINGLELEGGAIT 2
 
 int stepCounts[]={TRIPODSTEPCNT,TWOMOVESTEPCNT,SINGLELEGSTEPCNT};
-float maxMoveSpeeds[]={4.0f,3.0f,2.0f};
+float maxMoveSpeeds[]={3.5f,2.5f,1.5f};
+
 
 //int ***seqMaps[3]={&tripodSeqMap,&twoMoveSeqMap,&singleLegSeqMap}; Doesn't work.
 
@@ -217,6 +222,7 @@ int getLegStatus(int currentGait,int legNr,int step)
 }
 
 
+Position frontLegPos{0,0,0};
 
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
 void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
@@ -241,6 +247,12 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
   {
     case S_GROUND:
       leg->tipPos= worldToPod(world,leg->groundPos);
+      if(leg->legNr==0) //front leg
+      {
+        leg->tipPos.x += frontLegPos.x;
+        leg->tipPos.y += frontLegPos.y;
+        leg->tipPos.z += frontLegPos.z;
+      }
       //leg can only change it's mode to M_STAND6 or M_STAND4 if the groundposition is correct for that mode
       if( (mode==M_WALKING) || ((mode==M_STAND6 || mode==M_STAND4) && leg->groundPositionForMode==mode) )
         leg->mode=mode;
@@ -432,7 +444,7 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
   char partialBuffer[31];
   int i;
   serialBuffer[0]=0;
-  printf("MODE: %d\n",mode);
+  //printf("MODE: %d\n",mode);
   for(i=0;i<LEGCNT;i++)
   {
      setSeqPos(&legs[i],step,partial,world,moveX,moveY,-8,mode);
@@ -454,6 +466,16 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
   serialPuts(serialHandle,serialBuffer);
 }
 
+void sendPoweredDown(int serialHandle)
+{
+  serialPuts(serialHandle,POWEREDDOWNSTRING);
+}
+
+void sendZeroString(int serialHandle)
+{
+  serialPuts(serialHandle,ZEROSTRING);
+}
+
 void updateStepAndPartial(int *step, float *partial)
 {
   // Update step and partial
@@ -473,7 +495,7 @@ int main(int argc,char *argv[])
   char buffer[256];
   struct LengthString lengthStringToReceive;
   int sock=simplesocket_create(12345);
-  Position headrot{-0.25,0,0};
+  Position headrot{-0.25,0,0},rot{0,0,0};
   struct timespec lastScanTime,curTime,diffTime;
   World world{{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
@@ -493,6 +515,7 @@ int main(int argc,char *argv[])
 #define St4MY -6
 #define St4BY GndFBY
 
+  //Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
   //left legs (-x)
   legs[0]=createLeg(createPosition(-GndFBX, -GndFBY,GndZ),createPosition(-JntFBX,-JntFBY,JntZ),createPosition(-St4FX, St4FY,GndZ),(-180+22)*M_PI/180,2,0, true);  //front
   legs[1]=createLeg(createPosition(-GndMX,        0,GndZ),createPosition(-JntMX,       0,JntZ),createPosition(-St4MX, St4MY,GndZ),(-180   )*M_PI/180,5,1,true);  //mid
@@ -501,11 +524,13 @@ int main(int argc,char *argv[])
   //right legs (+x)
   legs[3]=createLeg(createPosition( GndFBX, -GndFBY,GndZ),createPosition( JntFBX,-JntFBY,JntZ),createPosition( St4FX, St4FY,GndZ),     -22 *M_PI/180,16,3,true);   //back
   legs[4]=createLeg(createPosition( GndMX,        0,GndZ),createPosition( JntMX,       0,JntZ),createPosition( St4MX, St4MY,GndZ),       0 *M_PI/180,19,4, true);   //mid
-  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,5,true);  //front   
+  legs[5]=createLeg(createPosition( GndFBX,  GndFBY,GndZ),createPosition( JntFBX, JntFBY,JntZ),createPosition( St4BX, St4BY,GndZ),      22 *M_PI/180,22,5,true);  //front
 
   printf("Starting\n");
   int fd=serialOpen((char *)"/dev/ttyUSB0",115200);
   printf("serialOpen returns: %d\n",fd);
+  usleep(100000);
+  sendZeroString(fd);
   if(fd==-1)exit(1);
   int step=0;
   float partial=0;
@@ -518,6 +543,8 @@ int main(int argc,char *argv[])
   bool commandActive=0;
   int commandTicks=0;
   int mode = M_STAND4;
+  int servosPowered = 0;
+  float maxSpeed = 0;
 
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
@@ -527,10 +554,16 @@ int main(int argc,char *argv[])
     while(simplesocket_receive(sock,&lengthStringToReceive))
     {
       printf("Received:'%s'\n",lengthStringToReceive.buffer);
+      if(lengthStringToReceive.buffer[0]=='P')
+      {
+        int powerUpOrDown = 0;
+        sscanf(lengthStringToReceive.buffer,"P %d",&powerUpOrDown);
+        servosPowered = !!powerUpOrDown;
+      }
       if(lengthStringToReceive.buffer[0]=='R')
       {
         sscanf(lengthStringToReceive.buffer,"R %f %f %f",&command.rot.x,&command.rot.y,&command.rot.z);
-        printf("New z rotation: %f\n",command.rot.z);
+        printf("New x,y,z rotation: %f,%f,%f\n",command.rot.x,command.rot.y,command.rot.z);
         command.type = Com_Rotate;
         commandActive = 1;
         commandTicks = 0;
@@ -543,6 +576,28 @@ int main(int argc,char *argv[])
         commandTicks=0;
         command.type = Com_Move;
       }
+      if(lengthStringToReceive.buffer[0]=='S')
+      {
+        int standtype = 0;
+        sscanf(lengthStringToReceive.buffer,"S %d %f %f %f", &standtype, &command.moveX, &command.moveY, &command.moveZ);
+        commandActive = 1;
+        commandTicks = 0;
+        if(standtype == 4)
+	  command.type = Com_Stand4;
+        else
+          command.type = Com_Stand6;
+      }
+      if(lengthStringToReceive.buffer[0]=='G') // change gait
+      {
+        int gaitType = 0;
+        sscanf(lengthStringToReceive.buffer,"G %d",&gaitType);
+        if(gaitType == 0)
+          currentGait = TRIPODGAIT;
+        else if(gaitType == 1)
+          currentGait = TWOMOVEGAIT;
+        else
+          currentGait = SINGLELEGGAIT;
+      }
     }
 
     clock_gettime(CLOCK_MONOTONIC,&curTime);
@@ -550,19 +605,23 @@ int main(int argc,char *argv[])
 
     readvoltages(fd);
     dist=getDistance(fd);
+    maxSpeed = maxMoveSpeeds[currentGait];
 
 
     // Command override
     if(commandActive)
     {
+      frontLegPos.x = 0;
+      frontLegPos.y = 0;
+      frontLegPos.z = 0;
       switch(command.type)
       {
       case Com_Move:
         mode=M_WALKING; //override mode when executing command
-        moveX=command.moveX;
-        moveY=command.moveY;
+        moveX=command.moveX*maxSpeed;
+        moveY=command.moveY*maxSpeed;
         drotz=command.drotz;
-        printf("Command active, move,rot:(%g,%g,%g) tick: %d/%d\n",
+        printf("Command active, move,rot:(%g,%g),%g tick: %d/%d\n",
                moveX,moveY,drotz,commandTicks,command.ticks);
         commandTicks++;
         if(commandTicks>command.ticks)
@@ -572,19 +631,31 @@ int main(int argc,char *argv[])
         }
         break;
       case Com_Rotate:
-        mode = M_STAND4; //will be overwritten
+        mode = M_STAND6; //will be overwritten
         printf("Command active, rotating..");
         headrot = command.rot;
+        rot = command.rot;
+        break;
+      case Com_Stand4:
+        mode = M_STAND4;
+        printf("Command active, stand4-ing..");
+        frontLegPos.x = command.moveX;
+        frontLegPos.y = command.moveY;
+        frontLegPos.z = command.moveZ;
+        break;
+      case Com_Stand6:
+        mode = M_STAND6;
+        printf("Command active, stand6-ing..");
         break;
       }
     }
-    if(!commandActive || command.type == Com_Rotate) // Only the rotate command can execute during standard behavior
+    if(!commandActive) // Only the rotate command can execute during standard behavior
     {
       modeCounter++;
       //mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
       mode = M_STAND6;
       // Standard behavior
-      float maxSpeed=maxMoveSpeeds[currentGait],speed=0.0f;
+      float speed=0.0f;
       if(dist>40)
       {
         moveX=0.0f;
@@ -613,7 +684,10 @@ int main(int argc,char *argv[])
       drotz=0;
     }
 
-    sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headrot);
+    if(servosPowered)
+      sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headrot);
+    else
+      sendPoweredDown(fd);
 
     updateStepAndPartial(&step, &partial);
 
@@ -625,9 +699,9 @@ int main(int argc,char *argv[])
     //move speed max = move(X,Y) / ( 8 / partialAdd) ?
     world.trans.x+=moveGroundX/6.0;
     world.trans.y+=moveGroundY/6.0;
-    world.rot.x=0;//rot.x;
-    world.rot.y=0;//rot.y;
-    world.rot.z+=drotz; // rot.z
+    world.rot.x=rot.x;
+    world.rot.y=rot.y;
+    world.rot.z=rot.z; // +=drotz
     usleep(50000);
   }
   serialClose(fd);
