@@ -2,6 +2,7 @@ import pygame
 import gamepad_helper
 import simplesocket
 import array
+import argparse
 
 def joystick2bytestring(joystick):
   #Parts to encode: axis 0-4, button 0-9, hat 0
@@ -14,8 +15,8 @@ def joystick2bytestring(joystick):
   #button 0-9
   for button in range(0,10):
     buttonValue = joystick.get_button(button)
-	buttonByte = 1 if buttonValue else 0
-	intArray.append(buttonByte)
+    buttonByte = 1 if buttonValue else 0
+    intArray.append(buttonByte)
   byteString = array.array('B',intArray).tostring()
   if len(byteString) != gamepad_helper.packetSize:
     print "ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),gamepad_helper.packetSize)
@@ -50,113 +51,125 @@ class TextPrint:
         
     def unindent(self):
         self.x -= 10
-    
 
-pygame.init()
- 
-# Set the width and height of the screen [width,height]
-size = [500, 700]
-screen = pygame.display.set_mode(size)
+def main(send_to_odroid):
+    print "Starting"
+    pygame.init()
+     
+    # Set the width and height of the screen [width,height]
+    size = [500, 700]
+    screen = pygame.display.set_mode(size)
 
-pygame.display.set_caption("My Game")
+    pygame.display.set_caption("My Game")
 
-#Loop until the user clicks the close button.
-done = False
+    #Loop until the user clicks the close button.
+    done = False
 
-# Used to manage how fast the screen updates
-clock = pygame.time.Clock()
+    # Used to manage how fast the screen updates
+    clock = pygame.time.Clock()
 
-# Initialize the joysticks
-pygame.joystick.init()
-    
-# Get ready to print
-textPrint = TextPrint()
-
-sock = simplesocket.simplesocket(gamepad_helper.GP_PORT,gamepad_helper.TAU_IP)
-
-# -------- Main Program Loop -----------
-while done==False:
-    # EVENT PROCESSING STEP
-    for event in pygame.event.get(): # User did something
-        if event.type == pygame.QUIT: # If user clicked close
-            done=True # Flag that we are done so we exit this loop
+    # Initialize the joysticks
+    pygame.joystick.init()
         
-        # Possible joystick actions: JOYAXISMOTION JOYBALLMOTION JOYBUTTONDOWN JOYBUTTONUP JOYHATMOTION
-        if event.type == pygame.JOYBUTTONDOWN:
-            print("Joystick button pressed.")
-        if event.type == pygame.JOYBUTTONUP:
-            print("Joystick button released.")
+    # Get ready to print
+    textPrint = TextPrint()
+    
+    if send_to_odroid:
+        print "Socket init: port:%d, ip:%s" % (gamepad_helper.GP_PORT, gamepad_helper.TAU_IP)
+        sock = simplesocket.simplesocket(gamepad_helper.GP_PORT,gamepad_helper.TAU_IP)
+        print "Socket setup done"
+
+    # -------- Main Program Loop -----------
+    while done==False:
+        # EVENT PROCESSING STEP
+        for event in pygame.event.get(): # User did something
+            if event.type == pygame.QUIT: # If user clicked close
+                done=True # Flag that we are done so we exit this loop
             
- 
-    # DRAWING STEP
-    # First, clear the screen to white. Don't put other drawing commands
-    # above this, or they will be erased with this command.
-    screen.fill(WHITE)
-    textPrint.reset()
+            # Possible joystick actions: JOYAXISMOTION JOYBALLMOTION JOYBUTTONDOWN JOYBUTTONUP JOYHATMOTION
+            if event.type == pygame.JOYBUTTONDOWN:
+                print("Joystick button pressed.")
+            if event.type == pygame.JOYBUTTONUP:
+                print("Joystick button released.")
+                
+     
+        # DRAWING STEP
+        # First, clear the screen to white. Don't put other drawing commands
+        # above this, or they will be erased with this command.
+        screen.fill(WHITE)
+        textPrint.reset()
 
-    # Get count of joysticks
-    joystick_count = pygame.joystick.get_count()
+        # Get count of joysticks
+        joystick_count = pygame.joystick.get_count()
 
-    textPrint.textprint(screen, "Number of joysticks: {}".format(joystick_count) )
-    textPrint.indent()
-    
-    # For each joystick:
-    for i in range(joystick_count):
-        joystick = pygame.joystick.Joystick(i)
-        joystick.init()
-    
-        textPrint.textprint(screen, "Joystick {}".format(i) )
-        textPrint.indent()
-    
-        # Get the name from the OS for the controller/joystick
-        name = joystick.get_name()
-        textPrint.textprint(screen, "Joystick name: {}".format(name) )
-        
-        # Usually axis run in pairs, up/down for one, and left/right for
-        # the other.
-        axes = joystick.get_numaxes()
-        textPrint.textprint(screen, "Number of axes: {}".format(axes) )
+        textPrint.textprint(screen, "Number of joysticks: {}".format(joystick_count) )
         textPrint.indent()
         
-        for i in range( axes ):
-            axis = joystick.get_axis( i )
-            textPrint.textprint(screen, "Axis {} value: {:>6.3f}".format(i, axis) )
-        textPrint.unindent()
+        # For each joystick:
+        for i in range(joystick_count):
+            joystick = pygame.joystick.Joystick(i)
+            joystick.init()
+        
+            textPrint.textprint(screen, "Joystick {}".format(i) )
+            textPrint.indent()
+        
+            # Get the name from the OS for the controller/joystick
+            name = joystick.get_name()
+            textPrint.textprint(screen, "Joystick name: {}".format(name) )
             
-        buttons = joystick.get_numbuttons()
-        textPrint.textprint(screen, "Number of buttons: {}".format(buttons) )
-        textPrint.indent()
-
-        for i in range( buttons ):
-            button = joystick.get_button( i )
-            textPrint.textprint(screen, "Button {:>2} value: {}".format(i,button) )
-        textPrint.unindent()
+            # Usually axis run in pairs, up/down for one, and left/right for
+            # the other.
+            axes = joystick.get_numaxes()
+            textPrint.textprint(screen, "Number of axes: {}".format(axes) )
+            textPrint.indent()
             
-        # Hat switch. All or nothing for direction, not like joysticks.
-        # Value comes back in an array.
-        hats = joystick.get_numhats()
-        textPrint.textprint(screen, "Number of hats: {}".format(hats) )
-        textPrint.indent()
+            for i in range( axes ):
+                axis = joystick.get_axis( i )
+                textPrint.textprint(screen, "Axis {} value: {:>6.3f}".format(i, axis) )
+            textPrint.unindent()
+                
+            buttons = joystick.get_numbuttons()
+            textPrint.textprint(screen, "Number of buttons: {}".format(buttons) )
+            textPrint.indent()
 
-        for i in range( hats ):
-            hat = joystick.get_hat( i )
-            textPrint.textprint(screen, "Hat {} value: {}".format(i, str(hat)) )
-        textPrint.unindent()
+            for i in range( buttons ):
+                button = joystick.get_button( i )
+                textPrint.textprint(screen, "Button {:>2} value: {}".format(i,button) )
+            textPrint.unindent()
+                
+            # Hat switch. All or nothing for direction, not like joysticks.
+            # Value comes back in an array.
+            hats = joystick.get_numhats()
+            textPrint.textprint(screen, "Number of hats: {}".format(hats) )
+            textPrint.indent()
+
+            for i in range( hats ):
+                hat = joystick.get_hat( i )
+                textPrint.textprint(screen, "Hat {} value: {}".format(i, str(hat)) )
+            textPrint.unindent()
+            
+            textPrint.unindent()
+
         
-        textPrint.unindent()
+        # ALL CODE TO DRAW SHOULD GO ABOVE THIS COMMENT
+        
+        # Go ahead and update the screen with what we've drawn.
+        pygame.display.flip()
+        bytestring = joystick2bytestring(joystick = pygame.joystick.Joystick(0))
+        print "bytestring: %r"%bytestring
+        if send_to_odroid:
+            sock.send(bytestring)
+        # Limit to 20 frames per second
+        clock.tick(20)
+        
+    # Close the window and quit.
+    # If you forget this line, the program will 'hang'
+    # on exit if running from IDLE.
+    pygame.quit ()
 
     
-    # ALL CODE TO DRAW SHOULD GO ABOVE THIS COMMENT
-    
-    # Go ahead and update the screen with what we've drawn.
-    pygame.display.flip()
-    bytestring = joystick2bytestring(joystick = pygame.joystick.Joystick(0))
-    print "bytestring: %r"%bytestring
-    sock.send(bytestring)
-    # Limit to 20 frames per second
-    clock.tick(20)
-    
-# Close the window and quit.
-# If you forget this line, the program will 'hang'
-# on exit if running from IDLE.
-pygame.quit ()
+parser = argparse.ArgumentParser()
+parser.add_argument('--send_to_odroid', '-s', action='store_true', default=False,
+                    help='If set, then will try to connect to odroid on port %d, ip %s' % (gamepad_helper.GP_PORT, gamepad_helper.TAU_IP))
+args = parser.parse_args()
+main(args.send_to_odroid)
