@@ -514,7 +514,7 @@ int main(int argc,char *argv[])
   char received_copy[1000] = {0};
 
   mosqpp::lib_init();
-  mqtt_connection = new MqttConnection("mqtt_sender", "localhost", 1883, "motioncontrol", on_message_func);
+  mqtt_connection = new MqttConnection("mqtt_sender", "hugowesseling.synology.me", 1883, "motioncontrol", on_message_func);
   mqtt_connection->loop_start();
   
 #define JntFBX 4
