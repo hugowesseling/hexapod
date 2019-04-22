@@ -5,6 +5,7 @@ import paho.mqtt.client as mqtt
 sys.path.insert(1, os.path.join(sys.path[0], '../shared'))
 import gamepad_helper
 
+"""
 def joystick2bytestring(joystick):
   #Parts to encode: axis 0-4, button 0-9, hat 0
   intArray = []
@@ -23,7 +24,27 @@ def joystick2bytestring(joystick):
     print("ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),gamepad_helper.packetSize))
     exit(1)
   return byteString
-
+"""
+POWERBUTTON_ID = 0
+prev_powerbutton_value = 1
+poweron = False
+def joystick2string(joystick):
+    global prev_powerbutton_value, poweron
+    powerbutton_value = joystick.get_button(POWERBUTTON_ID)
+    if powerbutton_value and not prev_powerbutton_value:
+        # Power switch
+        poweron = not poweron
+        print("Power on:", poweron)
+        return "P "+("1" if poweron else "0")
+    prev_powerbutton_value = powerbutton_value
+    # get axis values for R command
+    if poweron:
+        axis0 = joystick.get_axis(0)
+        axis1 = joystick.get_axis(1)
+        axis2 = joystick.get_axis(3)
+        return "W {:.2f} {:.2f} {:.2f} 20".format(axis0, axis1, axis2)
+    else:
+        return "X"
 
 # Define some colors
 BLACK    = (   0,   0,   0)
@@ -54,7 +75,7 @@ class TextPrint:
         self.x -= 10
     
 client = mqtt.Client()
-client.connect("192.168.1.84", 1883, 60)
+client.connect("hugowesseling.synology.me", 1883, 60)
 client.loop_start()
 
 pygame.init()
@@ -153,9 +174,9 @@ while done==False:
     
     # Go ahead and update the screen with what we've drawn.
     pygame.display.flip()
-    bytestring = joystick2bytestring(joystick = pygame.joystick.Joystick(0))
-    print("bytestring: %r"%bytestring)
-    client.publish("gamepad", bytestring)
+    send_string = joystick2string(joystick = pygame.joystick.Joystick(0))
+    print("send_string: %r"%send_string)
+    client.publish("motioncontrol", send_string)
 
     # Limit to 20 frames per second
     clock.tick(10)
