@@ -28,21 +28,50 @@ def joystick2bytestring(joystick):
 POWERBUTTON_ID = 0
 prev_powerbutton_value = 1
 poweron = False
+GAITBUTTON_ID = 1
+prev_gaitbutton_value = 1
+gait = 0
+WALKBUTTON_ID = 2
+STAND4BUTTON_ID = 3
+
 def joystick2string(joystick):
     global prev_powerbutton_value, poweron
+    global prev_gaitbutton_value, gait
+    
     powerbutton_value = joystick.get_button(POWERBUTTON_ID)
     if powerbutton_value and not prev_powerbutton_value:
         # Power switch
+        prev_powerbutton_value = powerbutton_value
         poweron = not poweron
         print("Power on:", poweron)
         return "P "+("1" if poweron else "0")
     prev_powerbutton_value = powerbutton_value
+    
+    gaitbutton_value = joystick.get_button(GAITBUTTON_ID)
+    if gaitbutton_value and not prev_gaitbutton_value:
+        prev_gaitbutton_value = gaitbutton_value
+        gait += 1
+        if gait>2:
+            gait = 0
+        print("Current gait:", gait)
+        return "G {:d}".format(gait)
+    prev_gaitbutton_value = gaitbutton_value
+    
     # get axis values for R command
     if poweron:
+        walking = joystick.get_button(WALKBUTTON_ID)
+        stand4 = joystick.get_button(STAND4BUTTON_ID)
+
         axis0 = joystick.get_axis(0)
         axis1 = joystick.get_axis(1)
         axis2 = joystick.get_axis(3)
-        return "W {:.2f} {:.2f} {:.2f} 20".format(axis0, axis1, axis2)
+        if walking:
+            return "W {:.2f} {:.2f} {:.2f} 20".format(axis0*4, axis1*4, axis2*4)
+        else:
+            if stand4:
+                return "S 4 {:.2f} {:.2f} {:.2f}".format(axis0*4, axis1*4, axis2*4)
+            else:
+                return "R {:.2f} {:.2f} {:.2f}".format(axis0*4, axis1*4, axis2*4)
     else:
         return "X"
 
