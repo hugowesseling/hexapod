@@ -307,7 +307,7 @@ int main(int argc,char *argv[])
   legs[5]=createLeg(createPosition( 13,  13,-4),createPosition( 4,   8,0),      22 *M_PI/180,22,false,true);  //front   
 
   printf("Starting\n");
-  int fd=serialOpen((char *)"/dev/ttyAMA0",115200);
+  int fd=serialOpen((char *)"/dev/ttyUSB0", 115200); //ttyAMA0
   printf("serialOpen returns: %d\n",fd);
   if(fd==-1)exit(1);
   char serialBuffer[1000];

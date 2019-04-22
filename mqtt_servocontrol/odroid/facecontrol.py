@@ -1,16 +1,10 @@
+import paho.mqtt.client as mqtt
 import sys
 import cv2.cv as cv
 from optparse import OptionParser
-import serial
-import simplesocket
 import time
 import math
 
-sock=simplesocket.simplesocket(12345)
-
-
-
-comOut = serial.Serial(port='/dev/ttyUSB0',baudrate=115200)
 
 # Parameters for haar detection
 # From the API:
@@ -34,14 +28,7 @@ def detect_and_draw(img, cascade):
     global pan,tilt,prevpanchange,prevtiltchange
     # allocate temporary images
     gray = cv.CreateImage((img.width,img.height), 8, 1)
-    #small_img = cv.CreateImage((cv.Round(img.width / image_scale),
-	#		       cv.Round (img.height / image_scale)), 8, 1)
-
-    # convert color input image to grayscale
     cv.CvtColor(img, gray, cv.CV_BGR2GRAY)
-
-    # scale input image for faster processing
-    #cv.Resize(gray, small_img, cv.CV_INTER_LINEAR)
 
     cv.EqualizeHist(gray,gray)
 
@@ -55,43 +42,64 @@ def detect_and_draw(img, cascade):
             for ((x, y, w, h), n) in faces:
                 # the input to cv.HaarDetectObjects was resized, so scale the 
                 # bounding box of each face and convert it to two CvPoints
-                #pt1 = (int(x * image_scale), int(y * image_scale))
-                #pt2 = (int((x + w) * image_scale), int((y + h) * image_scale))
-		print "Face found at %d,%d"%(x,y)
-		oldpan=pan
-		oldtilt=tilt
-                panchange=-prevpanchange-(x+w/2-img.width/2)*2
-		tiltchange=-prevtiltchange-(y+h/2-img.height/2)*2
-		pan+=panchange
-		tilt+=tiltchange
-		rotx=-tilt*math.pi/2000		
-		roty=0
-		rotz=-pan*math.pi/2000
-		print "New pan tilt:%f,%f"%(rotz,rotx)
-		sock.send("R %f %f %f"%(rotx,roty,rotz))
-		while True:
-			received,buf=sock.receive()
-			if not received:
-				break
-			print "Received:",buf
+                pt1 = (int(x * image_scale), int(y * image_scale))
+                pt2 = (int((x + w) * image_scale), int((y + h) * image_scale))
+                cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+                
+                facemidx = x+w/2
+                facemidy = y+h/2
+                facemidx_fromcenter = (facemidx - img.width/2)*2
+                facemidy_fromcenter = (facemidy - img.height/2)*2
+                print "Face found at %d,%d" % (facemidx_fromcenter, facemidy_fromcenter)
+                
+                oldpan = pan
+                oldtilt = tilt
+                panchange = -facemidx_fromcenter # -prevpanchange
+                tiltchange = -facemidy_fromcenter # -prevtiltchange
+                pan += panchange
+                tilt += tiltchange
+                
+                """
+                rotx = -tilt*math.pi/2000
+                roty = 0
+                rotz = -pan*math.pi/2000
+                """
+                rotx = -tilt*math.pi/10000
+                roty = 0
+                rotz = -pan*math.pi/10000
+                print "New pan tilt:%f,%f"%(rotz,rotx)
+                
+                client.publish("motioncontrol", "R %f %f %f"%(rotx,roty,rotz))
 
-                #cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
-		comOut.write("#0P%d#1P%d T300\r"%(tilt,pan))
-		break
+                #comOut.write("#0P%d#1P%d T300\r"%(tilt,pan))
+                break
 
     cv.ShowImage("result", img)
 
-if __name__ == '__main__':
 
+def on_connect(client, userdata, flags, rc):
+    print("Connected with result code "+str(rc))
+
+def on_message(client, userdata, msg):
+    print("on_message: %r" % msg.payload)
+
+
+if __name__ == '__main__':
     parser = OptionParser(usage = "usage: %prog [options] [filename|camera_index]")
-    parser.add_option("-c", "--cascade", action="store", dest="cascade", type="str", help="Haar cascade file, default %default", default = "../data/haarcascades/haarcascade_frontalface_alt.xml")
+    parser.add_option("-c", "--cascade", action="store", dest="cascade", type="str", help="Haar cascade file, default %default", default = "face.xml")
     (options, args) = parser.parse_args()
 
-    cascade = cv.Load(options.cascade)
-    
     if len(args) != 1:
         parser.print_help()
         sys.exit(1)
+
+    #Startup
+    cascade = cv.Load(options.cascade)
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.connect("192.168.1.84", 1883, 60)
+    client.loop_start()
 
     input_name = args[0]
     if input_name.isdigit():
@@ -105,19 +113,18 @@ if __name__ == '__main__':
     height = 120 #leave None for auto-detection
 
     if width is None:
-    	width = int(cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH))
+        width = int(cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_WIDTH))
     else:
-    	cv.SetCaptureProperty(capture,cv.CV_CAP_PROP_FRAME_WIDTH,width)    
+        cv.SetCaptureProperty(capture,cv.CV_CAP_PROP_FRAME_WIDTH,width)    
 
     if height is None:
-	height = int(cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT))
+        height = int(cv.GetCaptureProperty(capture, cv.CV_CAP_PROP_FRAME_HEIGHT))
     else:
-	cv.SetCaptureProperty(capture,cv.CV_CAP_PROP_FRAME_HEIGHT,height) 
+        cv.SetCaptureProperty(capture,cv.CV_CAP_PROP_FRAME_HEIGHT,height) 
 
     if capture:
         frame_copy = None
         while True:
-
             frame = cv.QueryFrame(capture)
             if not frame:
                 cv.WaitKey(0)
@@ -125,9 +132,6 @@ if __name__ == '__main__':
             if not frame_copy:
                 frame_copy = cv.CreateImage((frame.width,frame.height),
                                             cv.IPL_DEPTH_8U, frame.nChannels)
-
-#                frame_copy = cv.CreateImage((frame.width,frame.height),
-#                                            cv.IPL_DEPTH_8U, frame.nChannels)
 
             if frame.origin == cv.IPL_ORIGIN_TL:
                 cv.Copy(frame, frame_copy)

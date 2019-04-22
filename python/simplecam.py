@@ -20,5 +20,5 @@ while True:
   ret, img = cap.read()
   print "cap.read():%r"%ret
   cv2.imshow("img", img)
-  cv2.imwrite("outimg.jpg",img);
+  #cv2.imwrite("outimg.jpg",img);
   cv2.waitKey(1)
