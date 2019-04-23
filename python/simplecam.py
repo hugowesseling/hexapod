@@ -1,6 +1,5 @@
 import sys
 import cv2
-import cv
 
 imageWidth=640 #1280
 imageHeight=360 #720
