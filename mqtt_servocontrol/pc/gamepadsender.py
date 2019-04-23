@@ -1,21 +1,50 @@
+import sys, os
 import pygame
-import gamepad_helper
-import simplesocket
 import array
+import paho.mqtt.client as mqtt
+sys.path.insert(1, os.path.join(sys.path[0], '../shared'))
+import gamepad_helper
 
+"""
 def joystick2bytestring(joystick):
   #Parts to encode: axis 0-4, button 0-9, hat 0
   intArray = []
+  #axes 0-4
   for axis in range(0,5):
     axisValue = joystick.get_axis(axis)
     axisByte = gamepad_helper.float01to255int(axisValue)
     intArray.append(axisByte)
+  #button 0-9
+  for button in range(0,10):
+    buttonValue = joystick.get_button(button)
+    buttonByte = 1 if buttonValue else 0
+    intArray.append(buttonByte)
   byteString = array.array('B',intArray).tostring()
   if len(byteString) != gamepad_helper.packetSize:
-    print "ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),gamepad_helper.packetSize)
+    print("ERROR: Not encoding into correct packetSize: len(%r)=%d != %d"%(byteString,len(byteString),gamepad_helper.packetSize))
     exit(1)
   return byteString
-
+"""
+POWERBUTTON_ID = 0
+prev_powerbutton_value = 1
+poweron = False
+def joystick2string(joystick):
+    global prev_powerbutton_value, poweron
+    powerbutton_value = joystick.get_button(POWERBUTTON_ID)
+    if powerbutton_value and not prev_powerbutton_value:
+        # Power switch
+        poweron = not poweron
+        print("Power on:", poweron)
+        return "P "+("1" if poweron else "0")
+    prev_powerbutton_value = powerbutton_value
+    # get axis values for R command
+    if poweron:
+        axis0 = joystick.get_axis(0)
+        axis1 = joystick.get_axis(1)
+        axis2 = joystick.get_axis(3)
+        return "W {:.2f} {:.2f} {:.2f} 20".format(axis0, axis1, axis2)
+    else:
+        return "X"
 
 # Define some colors
 BLACK    = (   0,   0,   0)
@@ -45,9 +74,12 @@ class TextPrint:
     def unindent(self):
         self.x -= 10
     
+client = mqtt.Client()
+client.connect("hugowesseling.synology.me", 1883, 60)
+client.loop_start()
 
 pygame.init()
- 
+
 # Set the width and height of the screen [width,height]
 size = [500, 700]
 screen = pygame.display.set_mode(size)
@@ -65,8 +97,6 @@ pygame.joystick.init()
     
 # Get ready to print
 textPrint = TextPrint()
-
-sock = simplesocket.simplesocket(gamepad_helper.GP_PORT,gamepad_helper.TAU_IP)
 
 # -------- Main Program Loop -----------
 while done==False:
@@ -144,11 +174,12 @@ while done==False:
     
     # Go ahead and update the screen with what we've drawn.
     pygame.display.flip()
-    bytestring = joystick2bytestring(joystick = pygame.joystick.Joystick(0))
-    print "bytestring: %r"%bytestring
-    sock.send(bytestring)
+    send_string = joystick2string(joystick = pygame.joystick.Joystick(0))
+    print("send_string: %r"%send_string)
+    client.publish("motioncontrol", send_string)
+
     # Limit to 20 frames per second
-    clock.tick(20)
+    clock.tick(10)
     
 # Close the window and quit.
 # If you forget this line, the program will 'hang'

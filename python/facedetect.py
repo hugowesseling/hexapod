@@ -9,9 +9,6 @@ Python implementation by: Roman Stanchak, James Bowman
 import sys
 import cv2.cv as cv
 from optparse import OptionParser
-import serial
-
-comOut = serial.Serial(port='/dev/ttyAMA0',baudrate=115200)
 
 # Parameters for haar detection
 # From the API:
@@ -73,7 +70,7 @@ def detect_and_draw(img, cascade):
 		prevtiltchange=tilt-oldtilt
 		print "New pan tilt:%d,%d"%(pan,tilt)
                 #cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
-		comOut.write("#0P%d#1P%d T300\r"%(tilt,pan))
+		#comOut.write("#0P%d#1P%d T300\r"%(tilt,pan))
 		break
 
     cv.ShowImage("result", img)
@@ -81,9 +78,13 @@ def detect_and_draw(img, cascade):
 if __name__ == '__main__':
 
     parser = OptionParser(usage = "usage: %prog [options] [filename|camera_index]")
-    parser.add_option("-c", "--cascade", action="store", dest="cascade", type="str", help="Haar cascade file, default %default", default = "../data/haarcascades/haarcascade_frontalface_alt.xml")
+    parser.add_option("-c", "--cascade", action="store", dest="cascade", type="str", help="Haar cascade file, default %default", 
+    default = "face.xml")
+    #default = "../data/haarcascades/haarcascade_frontalface_alt.xml")
+    
     (options, args) = parser.parse_args()
 
+    print("Loading cascade file: %s" % options.cascade)
     cascade = cv.Load(options.cascade)
     
     if len(args) != 1:

@@ -41,7 +41,7 @@ int set_interface_attribs (int fd, int speed, int parity)
 
         if (tcsetattr (fd, TCSANOW, &tty) != 0)
         {
-                printf ("error %d from tcsetattr", errno);
+                printf ("set_interface_attribs: ERROR %d from tcsetattr", errno);
                 return -1;
         }
         return 0;
@@ -53,7 +53,7 @@ void set_blocking (int fd, int should_block)
         memset (&tty, 0, sizeof tty);
         if (tcgetattr (fd, &tty) != 0)
         {
-                printf ("error %d from tggetattr", errno);
+                printf ("set_blocking: ERROR %d from tggetattr", errno);
                 return;
         }
 
@@ -61,7 +61,7 @@ void set_blocking (int fd, int should_block)
         tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
 
         if (tcsetattr (fd, TCSANOW, &tty) != 0)
-                printf ("error %d setting term attributes", errno);
+                printf ("set_blocking: ERROR %d setting term attributes", errno);
 }
 
 
@@ -74,14 +74,14 @@ int serialOpen(char *portname, int baudrate)
 			serialSpeed = B115200;
 			break;
 		default:
-			printf("ERROR: cannot switch to baudrate: %d\n",baudrate);
+			printf("serialOpen: ERROR: cannot switch to baudrate: %d\n",baudrate);
 			return 0;
 	}
 	int fd = open (portname, O_RDWR | O_NOCTTY | O_SYNC);
 
         if(fd < 0)
         {
-                printf ("ERROR: %d opening %s: %s", errno, portname, strerror (errno));
+                printf ("serialOpen: ERROR: %d opening %s: %s", errno, portname, strerror (errno));
                 return 0;
         }
 
@@ -90,14 +90,14 @@ int serialOpen(char *portname, int baudrate)
 	return fd;
 }
 
-int serialClose(int fd)
+void serialClose(int fd)
 {
 	close(fd);
 }
 
 void serialPuts(int fd,const char *sendstr)
 {
-	printf("Sending ***\n%s\n*** over serial fd:%d\n",sendstr,fd);
+	printf("serialPuts: Sending ***\n%s\n*** over serial fd:%d\n",sendstr,fd);
 	if(!fd)return;
 	int len = strlen(sendstr);
         write (fd, sendstr, len);
@@ -109,6 +109,6 @@ int serialGetchar(int fd)
 	char buf [2];
         int n = read (fd, buf, 1);  // read up to 100 characters if ready to read
         buf[1]=0;
-        printf("Received %d chars: %s\n",n,buf);
+        printf("serialGetchar: Received %d chars: %s\n",n,buf);
 	return buf[0];
 }

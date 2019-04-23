@@ -12,7 +12,7 @@ float ir2Distance(int val)
 int main(int argc,char *argv[])
 {
   printf("Run twice first time for correct values\n");
-  int fd=serialOpen("/dev/ttyAMA0",115200);
+  int fd=serialOpen("/dev/ttyUSB0",115200);
   printf("serialOpen returns: %d\n",fd);
   if(fd==-1)exit(1);
   serialPuts(fd,"VA\r");

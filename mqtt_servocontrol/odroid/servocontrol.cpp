@@ -11,8 +11,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "simplesocket.c"
 #include "serial_util.c"
+#include "mqtt_connection.h"
 
 using namespace std;
 
@@ -41,7 +41,7 @@ typedef struct T_Position
 
 Position createPosition(float x,float y,float z)
 {
-  Position ret{x,y,z};
+  Position ret = {x,y,z};
   return ret;
 }
 
@@ -55,15 +55,15 @@ Position worldToPod(World *world,Position worldPos)
 {
   float cosrx=cosf(world->rot.x),sinrx=sinf(world->rot.x);
   float cosrz=cosf(world->rot.z),sinrz=sinf(world->rot.z);
-  Position transPos{worldPos.x+world->trans.x,
-                    worldPos.y+world->trans.y,
-                    worldPos.z+world->trans.z};
-  Position posrz{transPos.x*cosrz+transPos.y*sinrz,
-                 transPos.y*cosrz-transPos.x*sinrz,
-                 transPos.z};
-  Position podPos{posrz.x,
-                  posrz.y*cosrx+posrz.z*sinrx,
-                  posrz.z*cosrx-posrz.y*sinrx};
+  Position transPos = {worldPos.x+world->trans.x,
+                       worldPos.y+world->trans.y,
+                       worldPos.z+world->trans.z};
+  Position posrz = {transPos.x*cosrz+transPos.y*sinrz,
+                    transPos.y*cosrz-transPos.x*sinrz,
+                    transPos.z};
+  Position podPos = {posrz.x,
+                     posrz.y*cosrx+posrz.z*sinrx,
+                     posrz.z*cosrx-posrz.y*sinrx};
   return podPos;
 }
 
@@ -71,15 +71,15 @@ Position podToWorld(World *world,Position podpos)
 {
   float cosrx=cos(-world->rot.x),sinrx=sin(-world->rot.x);
   float cosrz=cos(-world->rot.z),sinrz=sin(-world->rot.z);
-  Position posrz{podpos.x,
-                 podpos.y*cosrx+podpos.z*sinrx,
-                 podpos.z*cosrx-podpos.y*sinrx};
-  Position transPos{posrz.x*cosrz+posrz.y*sinrz,
-                    posrz.y*cosrz-posrz.x*sinrz,
-                    posrz.z};
-  Position worldPos{transPos.x-world->trans.x,
-                    transPos.y-world->trans.y,
-                    transPos.z-world->trans.z};
+  Position posrz = {podpos.x,
+                    podpos.y*cosrx+podpos.z*sinrx,
+                    podpos.z*cosrx-podpos.y*sinrx};
+  Position transPos = {posrz.x*cosrz+posrz.y*sinrz,
+                       posrz.y*cosrz-posrz.x*sinrz,
+                       posrz.z};
+  Position worldPos = {transPos.x-world->trans.x,
+                       transPos.y-world->trans.y,
+                       transPos.z-world->trans.z};
   return worldPos;
 }
 /* Not needed
@@ -141,7 +141,7 @@ Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZe
   leg.previousOnGround=previousOnGround;
   leg.groundPos=groundPos;
   leg.st4Pos=st4Pos;
-  Position neutralAirPos{groundPos.x,groundPos.y,-4};
+  Position neutralAirPos = {groundPos.x,groundPos.y,-4};
   leg.neutralAirPos=neutralAirPos;
   leg.tipPos=groundPos;
   leg.jointPos=jointPos;
@@ -153,9 +153,9 @@ Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZe
 }
 Position interpolatePosition(Position pos1,Position pos2,float alpha)
 {
-  Position pos{pos1.x*(1-alpha)+pos2.x*alpha,
-               pos1.y*(1-alpha)+pos2.y*alpha,
-               pos1.z*(1-alpha)+pos2.z*alpha};
+  Position pos = {pos1.x*(1-alpha)+pos2.x*alpha,
+                  pos1.y*(1-alpha)+pos2.y*alpha,
+                  pos1.z*(1-alpha)+pos2.z*alpha};
   return pos;
 }
 
@@ -222,7 +222,7 @@ int getLegStatus(int currentGait,int legNr,int step)
 }
 
 
-Position frontLegPos{0,0,0};
+Position frontLegPos = {0,0,0};
 
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
 void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
@@ -304,7 +304,7 @@ Angles calculateAngles(Leg *leg)
   //h angle can not be more than 90 degrees from coxaZeroRotation
   h=angleModPiMinHalfPiToHalfPi(h-leg->coxaZeroRotation)+leg->coxaZeroRotation;
   
-  Position femurStart{leg->jointPos.x+cosf(h)*coxaLength,leg->jointPos.y+sinf(h)*coxaLength,leg->jointPos.z};
+  Position femurStart = {leg->jointPos.x+cosf(h)*coxaLength,leg->jointPos.y+sinf(h)*coxaLength,leg->jointPos.z};
   leg->femurStart=femurStart;
   //calculate 2d differences for two joint solution
   //calculate with sincos instead (or somehow get negative numbers: maybe dotproduct with coxa vector, no: rotate femurstart->tip vector using sin(h) & cos(h))
@@ -332,11 +332,11 @@ Angles calculateAngles(Leg *leg)
     float sinVu=(zdist*part1-xydist*part2);
     float vu=atan2f(sinVu,cosVu);
 //    printf("cosVu: %g, sinVu: %g, vu:%g\n",cosVu,sinVu,vu);
-    Angles ret{vl,vu,h};
+    Angles ret = {vl,vu,h};
     return ret;
   }
 
-  Angles ret{0,0,0};
+  Angles ret = {0,0,0};
   return ret;
 }
 
@@ -490,16 +490,33 @@ void updateStepAndPartial(int *step, float *partial)
   printf("Step: %d, partial: %g\n",*step,*partial);
 }
 
+int received = 0;
+char received_msg[1000] = {0};
+
+void on_message_func(const struct mosquitto_message *message)
+{
+    printf("on_message_func: %s\n", (char *)(message->payload));
+    if(!received)
+    {
+        strcpy(received_msg,(char *)(message->payload));
+        received = 1;
+    }
+}
+
+
 int main(int argc,char *argv[])
 {
-  char buffer[256];
-  struct LengthString lengthStringToReceive;
-  int sock=simplesocket_create(12345);
-  Position headrot{-0.25,0,0},rot{0,0,0};
-  struct timespec lastScanTime,curTime,diffTime;
-  World world{{0,0,0},{0,0,0}};
+  Position headrot = {-0.25,0,0}, rot = {0,0,0};
+  struct timespec lastScanTime, curTime, diffTime;
+  World world = {{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
+  class MqttConnection *mqtt_connection;
+  char received_copy[1000] = {0};
 
+  mosqpp::lib_init();
+  mqtt_connection = new MqttConnection("mqtt_sender", "hugowesseling.synology.me", 1883, "motioncontrol", on_message_func);
+  mqtt_connection->loop_start();
+  
 #define JntFBX 4
 #define JntMX 5.85
 #define JntFBY 8
@@ -537,7 +554,6 @@ int main(int argc,char *argv[])
   float moveX=0,moveY=0;
   float drotz=0;
   float dist;
-  bool scanDirectionRight=true;
   int modeCounter=0;
   Command command;
   bool commandActive=0;
@@ -549,37 +565,45 @@ int main(int argc,char *argv[])
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
   {
-   // Receiving commands
-    printf("Receiving..\n");
-    while(simplesocket_receive(sock,&lengthStringToReceive))
+    printf("\n\n");
+    if(received)
     {
-      printf("Received:'%s'\n",lengthStringToReceive.buffer);
-      if(lengthStringToReceive.buffer[0]=='P')
+      strcpy(received_copy, received_msg);
+      received = 0;
+      
+      printf("Received1:'%s'\n",received_msg);
+      printf("Received2:'%s'\n",received_copy);
+      if(received_copy[0]=='P')
       {
+        // Toggle servo power
         int powerUpOrDown = 0;
-        sscanf(lengthStringToReceive.buffer,"P %d",&powerUpOrDown);
+        sscanf(received_copy,"P %d",&powerUpOrDown);
         servosPowered = !!powerUpOrDown;
       }
-      if(lengthStringToReceive.buffer[0]=='R')
+      if(received_copy[0]=='R')
       {
-        sscanf(lengthStringToReceive.buffer,"R %f %f %f",&command.rot.x,&command.rot.y,&command.rot.z);
+        // Rotate
+        servosPowered = !0;
+        sscanf(received_copy,"R %f %f %f",&command.rot.x,&command.rot.y,&command.rot.z);
         printf("New x,y,z rotation: %f,%f,%f\n",command.rot.x,command.rot.y,command.rot.z);
         command.type = Com_Rotate;
         commandActive = 1;
         commandTicks = 0;
       }
-      if(lengthStringToReceive.buffer[0]=='W')
+      if(received_copy[0]=='W')
       {
-        sscanf(lengthStringToReceive.buffer,"W %f %f %f %d",&command.moveX,&command.moveY,&command.drotz,&command.ticks);
+        // Walk
+        sscanf(received_copy,"W %f %f %f %d",&command.moveX,&command.moveY,&command.drotz,&command.ticks);
         printf("Move command received: move(%f,%f) rot:%f for %d ticks\n",command.moveX,command.moveY,command.drotz,command.ticks);
         commandActive=1;
         commandTicks=0;
         command.type = Com_Move;
       }
-      if(lengthStringToReceive.buffer[0]=='S')
+      if(received_copy[0]=='S')
       {
+        // Stand 4 / 6
         int standtype = 0;
-        sscanf(lengthStringToReceive.buffer,"S %d %f %f %f", &standtype, &command.moveX, &command.moveY, &command.moveZ);
+        sscanf(received_copy,"S %d %f %f %f", &standtype, &command.moveX, &command.moveY, &command.moveZ);
         commandActive = 1;
         commandTicks = 0;
         if(standtype == 4)
@@ -587,10 +611,11 @@ int main(int argc,char *argv[])
         else
           command.type = Com_Stand6;
       }
-      if(lengthStringToReceive.buffer[0]=='G') // change gait
+      if(received_copy[0]=='G')
       {
+        // Change gait
         int gaitType = 0;
-        sscanf(lengthStringToReceive.buffer,"G %d",&gaitType);
+        sscanf(received_copy,"G %d",&gaitType);
         if(gaitType == 0)
           currentGait = TRIPODGAIT;
         else if(gaitType == 1)
@@ -621,13 +646,13 @@ int main(int argc,char *argv[])
         moveX=command.moveX*maxSpeed;
         moveY=command.moveY*maxSpeed;
         drotz=command.drotz;
-        printf("Command active, move,rot:(%g,%g),%g tick: %d/%d\n",
+        printf("Command active, move, rot:(%g,%g),%g tick: %d/%d\n",
                moveX,moveY,drotz,commandTicks,command.ticks);
         commandTicks++;
         if(commandTicks>command.ticks)
         {
           commandActive=0;
-          simplesocket_send(sock,"CE");  //command executed
+//          simplesocket_send(sock,"CE");  //command executed
         }
         break;
       case Com_Rotate:
@@ -655,7 +680,6 @@ int main(int argc,char *argv[])
       //mode=modeCounter%32<16?M_WALKING:modeCounter%64<32?M_STAND4:M_STAND6;
       mode = M_STAND6;
       // Standard behavior
-      float speed=0.0f;
       if(dist>40)
       {
         moveX=0.0f;
@@ -705,5 +729,7 @@ int main(int argc,char *argv[])
     usleep(50000);
   }
   serialClose(fd);
-  close(sock);
+  mqtt_connection->loop_stop();
+  mosqpp::lib_cleanup();
+
 }

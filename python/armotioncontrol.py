@@ -251,33 +251,71 @@ def setupCapture():
   cap.set(4,imageHeight)
   return cap
 
-
-def main():
+def main(enable_gamepad=True):
   #Setup
   motionsock = simplesocket.simplesocket(12345)
-  gamepadsock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
+  if enable_gamepad:
+    gamepadsock = simplesocket.simplesocket(gamepad_helper.GP_PORT)
   cap = setupCapture()
   analysisimg = numpy.zeros((200,200,4),numpy.uint8)
   surface = cairo.ImageSurface.create_for_data(analysisimg,cairo.FORMAT_ARGB32,200,200)
   cr = cairo.Context(surface)
   captureDelayTime = 1 #estimated 2 second delay in capturing image
+  lastbutton1 = False
+  lastbutton2 = False
+  currentGait = 0
+  servosPowered = False
 
-  #Mainloop
-  while True:
-    received,buf = gamepadsock.receive()
-    if received:
-      print "Received:%r"%buf
-      print "Axisvalues: %3d,%3d,%3d,%3d,%3d"%(ord(buf[0]),ord(buf[1]),ord(buf[2]),ord(buf[3]),ord(buf[4]))
-      speedx = ord(buf[0])/-64.0+2.0
-      speedy = ord(buf[1])/-32.0+4.0
-      print "Speed x,y: (%g,%g)"%(speedx,speedy)
-      if math.hypot(speedx,speedy)>0.4:
-        stringToSend = "W %g %g %g %d"%(speedx,speedy,0,1*25)
-      else:
-        stringToSend = "R 0 0 0"
-      print "stringToSend: '%s'"%stringToSend
-      motionsock.send(stringToSend)
-"""
+  if enable_gamepad:
+    #Mainloop
+    while True:
+      received,buf = gamepadsock.receive()
+      if received:
+        print "Received:%r"%buf
+        print "Axisvalues: %3d,%3d,%3d,%3d,%3d"%(ord(buf[0]),ord(buf[1]),ord(buf[2]),ord(buf[3]),ord(buf[4]))
+        print "Buttonvalues: %2d,%2d,%2d,%2d, %2d,%2d,%2d,%2d, %2d,%2d"%(ord(buf[5]),ord(buf[6]),ord(buf[7]),ord(buf[8]), ord(buf[9]),ord(buf[10]),ord(buf[11]),ord(buf[12]), ord(buf[13]),ord(buf[14]))
+  
+        stringToSend = ""
+        button0 = (ord(buf[5]) != 0)
+        button1 = (ord(buf[6]) != 0)
+        button2 = (ord(buf[7]) != 0)
+        if button2:
+          if not lastbutton2:
+            lastbutton2 = True
+            servosPowered = not servosPowered
+            stringToSend = "P %d"%(1 if servosPowered else 0)
+        else:
+          lastbutton2 = False
+        if stringToSend == "":
+          if button0:
+            legMoveX = ord(buf[0])/32.0-2.0 #-2 .. 6
+            legMoveY = ord(buf[2])/32.0-6.0 #-6 .. 2
+            legMoveZ = ord(buf[1])/32.0-1.0 #-1 .. 7
+            stringToSend = "S 4 %g %g %g"%(legMoveX,legMoveY,legMoveZ)
+          else:
+            speedx = ord(buf[0])/-128.0+1.0
+            speedy = ord(buf[1])/-64.0+2.0
+            print "Speed x,y: (%g,%g)"%(speedx,speedy)
+            if math.hypot(speedx,speedy)>0.4:
+              stringToSend = "W %g %g %g %d"%(speedx,speedy,0,1*25)
+            else:
+              rotx = (ord(buf[3])/128.0-1.0)*0.25
+              roty = 0
+              rotz = (ord(buf[4])/128.0-1.0)*0.25
+              height = ord(buf[2])/128.0-1.0
+              stringToSend = "R %g %g %g %g"%(rotx,roty,rotz,height)
+          if button1:
+            if not lastbutton1:
+              lastbutton1 = True
+              currentGait += 1
+              if currentGait > 2:
+                currentGait = 0
+            stringToSend = "G %d"%currentGait
+          else:
+            lastbutton1 = False
+        print "stringToSend: '%s'"%stringToSend
+        motionsock.send(stringToSend)
+  else:
     #Analyze camera picture
     ret, img = cap.read()
     print "cap.read():"+str(ret)
@@ -292,11 +330,11 @@ def main():
       ticks = executeTime * 25 #50 ms sleep per tick
       stringToSend = "W %g %g %g %d"%(dx,dy,dr,ticks)
       print "Sending \"%s\" and then waiting %d seconds"%(stringToSend,executeTime+captureDelayTime)
-      #sock.send(stringToSend)
+      motionsock.send(stringToSend)
       #Wait until timer expires and check socket receiving in meantime
       timeToWaitUntil = time.time() + executeTime
       while time.time()<timeToWaitUntil:
-        #received,buf = sock.receive()
+        #received,buf = motionsock.receive()
         #if received:
            #print "Received:%r"%buf
         time.sleep(0.1)
@@ -306,9 +344,9 @@ def main():
       print "Sleeping after command done"
     else:
       print "No markers detected"
-"""   
+ 
 
 #cv2.destroyAllWindows() 
 #cv2.VideoCapture(0).release()
 
-main()
+main(True)

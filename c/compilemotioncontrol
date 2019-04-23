@@ -1,1 +1,1 @@
-g++ motioncontrol.c -o motioncontrol -lrt -std=c++0x
+sudo g++ motioncontrol.c -o motioncontrol -lrt -std=c++0x
