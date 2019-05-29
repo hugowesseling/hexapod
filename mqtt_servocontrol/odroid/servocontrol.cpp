@@ -230,6 +230,10 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
   int status=S_GROUND;
   // leg->mode plays catch-up with mode given to this function.
   // A leg has to run through part of the sequence before reaching a mode
+  int legmode = leg->mode;
+  // if the groundposition the leg has now is not for this mode, switch to walking mode until it gets the correct position.
+  if((mode==M_STAND6 || mode==M_STAND4) && leg->groundPositionForMode!=mode)) 
+    legmode = M_WALKING;
   switch(leg->mode)
   {
     case M_WALKING:
