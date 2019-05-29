@@ -513,9 +513,13 @@ int main(int argc,char *argv[])
   class MqttConnection *mqtt_connection;
   char received_copy[1000] = {0};
 
+  printf("Mqtt init\n");
   mosqpp::lib_init();
-  mqtt_connection = new MqttConnection("mqtt_sender", "hugowesseling.synology.me", 1883, "motioncontrol", on_message_func);
+  printf("Connect to synology\n");
+  mqtt_connection = new MqttConnection("mqtt_sender", "localhost", 1883, "motioncontrol", on_message_func);
+  printf("Starting loop\n");
   mqtt_connection->loop_start();
+  printf("Mqtt setup complete\n");
   
 #define JntFBX 4
 #define JntMX 5.85
