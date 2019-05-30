@@ -4,7 +4,6 @@
 // Next step: create long temporal command: walkfor <steps>
 // Command will execute, and send "Command End" upon completion
 
-
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -39,9 +38,9 @@ StrStrMap processNames[ALIAS_COUNT] = {
 	"sv", "ffmpeg"};
 
 StrStrMap cmds[ALIAS_COUNT] = {
-	"pm", "~/github/hexapod/mqtt_servocontrol/odroid/program_manager/program_manager &",
-	"sc", "~/github/hexapod/mqtt_servocontrol/odroid/servocontrol &",
-	"sv", "~/stream_video.sh &"};
+	"pm", "/home/odroid/github/hexapod/mqtt_servocontrol/odroid/program_manager/program_manager &",
+	"sc", "/home/odroid/github/hexapod/mqtt_servocontrol/odroid/servocontrol &",
+	"sv", "/home/odroid/stream_video.sh"};
 
 int main(int argc,char *argv[])
 {
@@ -49,12 +48,15 @@ int main(int argc,char *argv[])
   char received_copy[1000] = {0};
 
   printf("Mqtt init\n");
+  fflush(stdout);
   mosqpp::lib_init();
   printf("Connect to synology\n");
   mqtt_connection = new MqttConnection("program_manager", "localhost", 1883, "programcontrol", on_message_func);
   printf("Starting loop\n");
+  fflush(stdout);
   mqtt_connection->loop_start();
   printf("Mqtt setup complete\n");
+  fflush(stdout);
   
   usleep(100000);
 
@@ -66,7 +68,9 @@ int main(int argc,char *argv[])
       received = 0;
 
       printf("Received1:'%s'\n",received_msg);
+      fflush(stdout);
       printf("Received2:'%s'\n",received_copy);
+      fflush(stdout);
       if(received_copy[0]=='K')
       {
         // Toggle servo power
@@ -78,12 +82,14 @@ int main(int argc,char *argv[])
             char systemString[256];
             sprintf(systemString, "killall %s", processNames[i].value);
             printf("Executing \"%s\"\n", systemString);
+            fflush(stdout);
 	    system(systemString);
             break;
           }
 	}
 	if(i == ALIAS_COUNT){
 	  printf("Alias \"%s\" not known\n", alias);
+          fflush(stdout);
 	}
       }
       if(received_copy[0]=='S')
@@ -93,12 +99,14 @@ int main(int argc,char *argv[])
         for(i = 0; i < ALIAS_COUNT; i++){
           if(strcmp(alias, cmds[i].key) == 0){
             printf("Executing \"%s\"\n", cmds[i].value);
+            fflush(stdout);
             system(cmds[i].value);
             break;
           }
         }
         if(i == ALIAS_COUNT){
           printf("Alias \"%s\" not known\n", alias);
+          fflush(stdout);
         }
       }
       if(received_copy[0]=='C')
@@ -111,8 +119,10 @@ int main(int argc,char *argv[])
 	    char bufstring[256];
             sprintf(bufstring, "ps -Af | grep \"[%c]%s\"", pn[0], pn+1);
             printf("Executing \"%s\"\n", bufstring);
+            fflush(stdout);
 	    int retval = system(bufstring);
             printf("retval: %d\n", retval);
+            fflush(stdout);
 	    sprintf(bufstring, "R %s %d", alias, !retval);
 	    mqtt_connection->publish_string(bufstring);
             break;
@@ -120,6 +130,7 @@ int main(int argc,char *argv[])
         }
         if(i == ALIAS_COUNT){
           printf("Alias \"%s\" not known\n", alias);
+          fflush(stdout);
         }
       }
 

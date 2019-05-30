@@ -124,18 +124,19 @@ enum
 
 typedef struct T_Gesture_Step
 {
+  int ticks;
   int legmode;
-  float headyaw,headpitch;
+  float headpan,headtilt;
   Position frontlegpos;
   Position worldtrans,worldrot;
 } GestureStep;
 
-GestureStep createGSHeadMove(float headyaw, float headpitch)
+GestureStep createGSHeadMove(int ticks, float headpan, float headtilt)
 {
-  GestureStep gs={0,0,0, 0,0,0, 0,0,0, 0,0,0};
+  GestureStep gs={ticks, 0, 0,0, 0,0,0, 0,0,0, 0,0,0};
   gs.legmode = M_STAND6;
-  gs.headyaw = headyaw;
-  gs.headpitch = headpitch;
+  gs.headpan = headpan;
+  gs.headtilt = headtilt;
   return gs;
 }
 
@@ -143,8 +144,8 @@ GestureStep createGSHeadMove(float headyaw, float headpitch)
 #define G_NOD 0
 #define G_COUNT 1
 
-GestureStep gestures[G_COUNT][MAX_GESTURE_STEPS]={{createGSHeadMove(0,0), createGSHeadMove(0,-1), createGSHeadMove(0,1), createGSHeadMove(0,0)}};
-int gesturelength[G_COUNT]={4};
+GestureStep gestures[G_COUNT][MAX_GESTURE_STEPS]={{createGSHeadMove(5,0,0), createGSHeadMove(5,0,-1), createGSHeadMove(5,0,1), createGSHeadMove(5,0,0)}};
+int gesture_length[G_COUNT]={4};
 
 
 typedef struct T_Command
@@ -157,6 +158,7 @@ typedef struct T_Command
   int ticks;
   Position rot;
   int gesture_id;
+  int gesture_step;
 } Command;
 
 Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
@@ -468,7 +470,7 @@ void readvoltages(int fd)
       scanDirectionRight=!scanDirectionRight;
     }*/
 
-void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World *world, int mode, float moveX, float moveY, Position headrot)
+void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World *world, int mode, float moveX, float moveY, float headpan, float headtilt)
 {
   char serialBuffer[1000];
   char partialBuffer[31];
@@ -481,8 +483,8 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
      getHexCommands(&legs[i],partialBuffer);
      strncat(serialBuffer,partialBuffer,1000);
   }
-  int tilt=1500-headrot.x*2000/M_PI;
-  int pan=1500-headrot.z*2000/M_PI;
+  int tilt=1500-headtilt*2000/M_PI;
+  int pan=1500-headpan*2000/M_PI;
   if(tilt<1200)tilt=1200;
   if(tilt>1800)tilt=1800;
   if(pan<1200)pan=1200;
@@ -536,7 +538,8 @@ void on_message_func(const struct mosquitto_message *message)
 
 int main(int argc,char *argv[])
 {
-  Position headrot = {-0.25,0,0}, rot = {0,0,0};
+  float headpan = 0, headtilt = -0.25;
+  Position rot = {0,0,0};
   struct timespec lastScanTime, curTime, diffTime;
   World world = {{0,0,0},{0,0,0}};
   Leg legs[LEGCNT];
@@ -617,6 +620,7 @@ int main(int argc,char *argv[])
         commandActive = 1;
         commandTicks = 0;
         command.gesture_id = gesture_id;
+        command.gesture_step = 0;
       }
       if(received_copy[0]=='P')
       {
@@ -681,11 +685,27 @@ int main(int argc,char *argv[])
     // Command override
     if(commandActive)
     {
+      GestureStep gs;
       frontLegPos.x = 0;
       frontLegPos.y = 0;
       frontLegPos.z = 0;
       switch(command.type)
       {
+      case Com_Gesture:
+        gs = gestures[command.gesture_id][command.gesture_step];
+        printf("Executing gesture %d, step %d, legmode: %d for %d ticks\n", command.gesture_id, command.gesture_step, gs.legmode, gs.ticks);
+        mode = gs.legmode;
+        headpan = gs.headpan;
+	headtilt = gs.headtilt;
+        commandTicks++;
+        if(commandTicks>gs.ticks){
+          commandTicks = 0;
+          command.gesture_step ++;
+          if(command.gesture_step >= gesture_length[command.gesture_id]){
+            commandActive = 0;
+          }
+        }
+        break;
       case Com_Move:
         mode=M_WALKING; //override mode when executing command
         moveX=command.moveX*maxSpeed;
@@ -703,7 +723,8 @@ int main(int argc,char *argv[])
       case Com_Rotate:
         mode = M_STAND6; //will be overwritten
         printf("Command active, rotating..");
-        headrot = command.rot;
+        headpan = command.rot.z;
+        headtilt = command.rot.x;
         rot = command.rot;
         break;
       case Com_Stand4:
@@ -754,7 +775,7 @@ int main(int argc,char *argv[])
     }
 
     if(servosPowered)
-      sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headrot);
+      sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headpan, headtilt);
     else
       sendPoweredDown(fd);
 
