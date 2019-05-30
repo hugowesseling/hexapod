@@ -4,7 +4,6 @@
 // Next step: create long temporal command: walkfor <steps>
 // Command will execute, and send "Command End" upon completion
 
-
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -119,8 +118,34 @@ enum
   Com_Move,
   Com_Rotate,
   Com_Stand4,
-  Com_Stand6
+  Com_Stand6,
+  Com_Gesture
 };
+
+typedef struct T_Gesture_Step
+{
+  int legmode;
+  float headyaw,headpitch;
+  Position frontlegpos;
+  Position worldtrans,worldrot;
+} GestureStep;
+
+GestureStep createGSHeadMove(float headyaw, float headpitch)
+{
+  GestureStep gs={0,0,0, 0,0,0, 0,0,0, 0,0,0};
+  gs.legmode = M_STAND6;
+  gs.headyaw = headyaw;
+  gs.headpitch = headpitch;
+  return gs;
+}
+
+#define MAX_GESTURE_STEPS 10
+#define G_NOD 0
+#define G_COUNT 1
+
+GestureStep gestures[G_COUNT][MAX_GESTURE_STEPS]={{createGSHeadMove(0,0), createGSHeadMove(0,-1), createGSHeadMove(0,1), createGSHeadMove(0,0)}};
+int gesturelength[G_COUNT]={4};
+
 
 typedef struct T_Command
 {
@@ -131,6 +156,7 @@ typedef struct T_Command
   float drotz;
   int ticks;
   Position rot;
+  int gesture_id;
 } Command;
 
 Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZeroRotation,int servoStartPos,int legNr, bool previousOnGround)
@@ -232,9 +258,9 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
   // A leg has to run through part of the sequence before reaching a mode
   int legmode = leg->mode;
   // if the groundposition the leg has now is not for this mode, switch to walking mode until it gets the correct position.
-  if((mode==M_STAND6 || mode==M_STAND4) && leg->groundPositionForMode!=mode)) 
+  if((mode==M_STAND6 || mode==M_STAND4) && leg->groundPositionForMode!=mode)
     legmode = M_WALKING;
-  switch(leg->mode)
+  switch(legmode)
   {
     case M_WALKING:
 //      status=tripodSeqMap[leg->isTripodA][step];
@@ -581,6 +607,17 @@ int main(int argc,char *argv[])
       
       printf("Received1:'%s'\n",received_msg);
       printf("Received2:'%s'\n",received_copy);
+      if(received_copy[0]=='G')
+      {
+        //gesture
+        int gesture_id = 0;
+        sscanf(received_copy,"G %d", &gesture_id);
+        printf("Doing gesture %d", gesture_id);
+        command.type = Com_Gesture;
+        commandActive = 1;
+        commandTicks = 0;
+        command.gesture_id = gesture_id;
+      }
       if(received_copy[0]=='P')
       {
         // Toggle servo power
