@@ -160,16 +160,21 @@ GestureStep createGSWorldTransRot(int ticks, Position trans, Position rot)
 #define MAX_GESTURE_STEPS 10
 #define G_YES 0
 #define G_NO 1
-#define G_WIGGLE 2
-#define G_COUNT 3
+#define G_BOW 2
+#define G_UPDOWN 3
+#define G_STANDUP 4
+#define G_COUNT 5
 
 GestureStep gestures[G_COUNT][MAX_GESTURE_STEPS]=
 {
   {createGSHeadMove(2,0,0), createGSHeadMove(1,0,-1), createGSHeadMove(1,0,1), createGSHeadMove(1,0,0)},
   {createGSHeadMove(2,0,0), createGSHeadMove(1,-0.5,0), createGSHeadMove(1,0.5,0), createGSHeadMove(1,0,0)},
-  {createGSWorldTransRot(2,pos(0,0,0),pos(0,0,0)), createGSWorldTransRot(10,pos(0,0,0),pos(0.4,0,0)),createGSWorldTransRot(20,pos(0,0,0),pos(-0.4,0,0)),createGSWorldTransRot(10,pos(0,0,0),pos(0,0,0))}
+  {createGSWorldTransRot(2,pos(0,0,0),pos(0,0,0)), createGSWorldTransRot(10,pos(0,0,0),pos(0.4,0,0)),createGSWorldTransRot(20,pos(0,0,0),pos(-0.4,0,0)),createGSWorldTransRot(10,pos(0,0,0),pos(0,0,0))},
+  {createGSWorldTransRot(2,pos(0,0,0),pos(0,0,0)), createGSWorldTransRot(10,pos(0,0,2),pos(0,0,0)),createGSWorldTransRot(20,pos(0,0,-2),pos(0,0,0)),createGSWorldTransRot(10,pos(0,0,0),pos(0,0,0))},
+  {createGSWorldTransRot(0,pos(0,0,4),pos(0,0,0)), createGSWorldTransRot(10,pos(0,0,0),pos(0,0,0))}
+
 };
-int gesture_length[G_COUNT]={4,4,4};
+int gesture_length[G_COUNT]={4,4,4,4,2};
 
 
 typedef struct T_Command
@@ -666,6 +671,13 @@ int main(int argc,char *argv[])
         int powerUpOrDown = 0;
         sscanf(received_copy,"P %d",&powerUpOrDown);
         servosPowered = !!powerUpOrDown;
+        if(servosPowered){
+          command.type = Com_Gesture;
+          commandActive = 1;
+          commandTicks = 0;
+          command.gesture_id = G_STANDUP;
+          command.gesture_step = 0;
+        }
       }
       if(received_copy[0]=='R')
       {
@@ -723,11 +735,7 @@ int main(int argc,char *argv[])
     if(commandActive)
     {
       GestureStep gs;
-      float alpha;
-      if(gs.ticks>0)
-        alpha = commandTicks*1.0f/gs.ticks;
-      else
-        alpha = 0;
+      float alpha = 0;
       frontLegPos.x = 0;
       frontLegPos.y = 0;
       frontLegPos.z = 0;
@@ -736,6 +744,10 @@ int main(int argc,char *argv[])
       case Com_Gesture:
         gs = gestures[command.gesture_id][command.gesture_step];
         printf("Executing gesture %d, step %d, legmode: %d for %d ticks\n", command.gesture_id, command.gesture_step, gs.legmode, gs.ticks);
+        if(gs.ticks>0)
+          alpha = commandTicks*1.0f/gs.ticks;
+        else
+          alpha = 1; //zero ticks, means directly into the next stance
         mode = gs.legmode;
         headpan = gs.headpan;
 	headtilt = gs.headtilt;
