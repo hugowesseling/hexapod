@@ -17,7 +17,7 @@ class MqttConnection : public mosqpp::mosquittopp
 		MqttConnection(const char *id, const char *host, int port, const char *topic, void (*on_message_func)(const struct mosquitto_message *));
 		~MqttConnection();
 
-		void publish_string(char *s);
+		void publish_string(const char *s);
 
 };
 

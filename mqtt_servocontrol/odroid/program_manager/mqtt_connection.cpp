@@ -29,7 +29,7 @@ void MqttConnection::on_connect(int rc)
 	}
 }
 
-void MqttConnection::publish_string(char *s)
+void MqttConnection::publish_string(const char *s)
 {
     int len = strlen(s);
     publish(NULL, topic, len, s);

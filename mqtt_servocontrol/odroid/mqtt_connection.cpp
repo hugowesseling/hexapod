@@ -29,6 +29,12 @@ void MqttConnection::on_connect(int rc)
 	}
 }
 
+void MqttConnection::publish_string(const char *s)
+{
+    int len = strlen(s);
+    publish(NULL, topic, len, s);
+}
+
 void MqttConnection::on_message(const struct mosquitto_message *message)
 {
     printf("on_message: %s\n", (char *)(message->payload));

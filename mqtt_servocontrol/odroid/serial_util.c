@@ -13,7 +13,7 @@ int set_interface_attribs (int fd, int speed, int parity)
         memset (&tty, 0, sizeof tty);
         if (tcgetattr (fd, &tty) != 0)
         {
-                printf ("error %d from tcgetattr", errno);
+                printf ("ERROR %d from tcgetattr", errno);
                 return -1;
         }
 
@@ -97,7 +97,7 @@ void serialClose(int fd)
 
 void serialPuts(int fd,const char *sendstr)
 {
-	printf("serialPuts: Sending ***\n%s\n*** over serial fd:%d\n",sendstr,fd);
+	//printf("serialPuts: Sending ***\n%s\n*** over serial fd:%d\n",sendstr,fd);
 	if(!fd)return;
 	int len = strlen(sendstr);
         write (fd, sendstr, len);
@@ -107,8 +107,9 @@ void serialPuts(int fd,const char *sendstr)
 int serialGetchar(int fd)
 {
 	char buf [2];
-        int n = read (fd, buf, 1);  // read up to 100 characters if ready to read
+        //int n = 
+        read (fd, buf, 1);  // read up to 100 characters if ready to read
         buf[1]=0;
-        printf("serialGetchar: Received %d chars: %s\n",n,buf);
+        //printf("serialGetchar: Received %d chars: %s\n",n,buf);
 	return buf[0];
 }

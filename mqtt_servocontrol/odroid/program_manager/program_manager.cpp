@@ -14,6 +14,8 @@
 
 using namespace std;
 
+#define SLEEP_MICROS 50000
+
 int received = 0;
 char received_msg[1000] = {0};
 
@@ -46,6 +48,7 @@ int main(int argc,char *argv[])
 {
   class MqttConnection *mqtt_connection;
   char received_copy[1000] = {0};
+  int counter = 1000000;
 
   printf("Mqtt init\n");
   fflush(stdout);
@@ -84,6 +87,10 @@ int main(int argc,char *argv[])
             printf("Executing \"%s\"\n", systemString);
             fflush(stdout);
 	    system(systemString);
+            //Directly do a check
+            char bufstring[256];
+            sprintf(bufstring, "C %s", alias);
+            mqtt_connection->publish_string(bufstring);
             break;
           }
 	}
@@ -101,6 +108,10 @@ int main(int argc,char *argv[])
             printf("Executing \"%s\"\n", cmds[i].value);
             fflush(stdout);
             system(cmds[i].value);
+            //Directly do a check
+            char bufstring[256];
+            sprintf(bufstring, "C %s", alias);
+            mqtt_connection->publish_string(bufstring);
             break;
           }
         }
@@ -135,7 +146,12 @@ int main(int argc,char *argv[])
       }
 
     }
-    usleep(50000);
+    usleep(SLEEP_MICROS);
+    counter++;
+    if(counter>(10000000/SLEEP_MICROS)) { //Every 10 seconds
+      counter = 0;
+      mqtt_connection->publish_string("R pm 1");
+    }
   }
   mqtt_connection->loop_stop();
   mosqpp::lib_cleanup();

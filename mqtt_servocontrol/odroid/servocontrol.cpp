@@ -20,6 +20,8 @@ bool legCrossedBoundary=false;
 const char *ZEROSTRING="#21PO-50 #7PO-20 #6PO-20 #8PO30 #16PO-20 #18PO30\r";
 const char *POWEREDDOWNSTRING="#0L #1L #2L #3L #4L #5L #6L #7L #8L #9L #10L #11L #12L #13L #14L #15L #16L #17L #18L #19L #20L #21L #22L #23L #24L #25L #26L #27L #28L #29L #30L #31L \r";
 
+#define SLEEP_MICROS 50000
+
 #define LEGCNT 6
 
 //gait modes
@@ -39,6 +41,12 @@ typedef struct T_Position
 } Position;
 
 Position createPosition(float x,float y,float z)
+{
+  Position ret = {x,y,z};
+  return ret;
+}
+
+Position pos(float x, float y, float z)
 {
   Position ret = {x,y,z};
   return ret;
@@ -68,8 +76,8 @@ Position worldToPod(World *world,Position worldPos)
 
 Position podToWorld(World *world,Position podpos)
 {
-  float cosrx=cos(-world->rot.x),sinrx=sin(-world->rot.x);
-  float cosrz=cos(-world->rot.z),sinrz=sin(-world->rot.z);
+  float cosrx=cosf(-world->rot.x),sinrx=sinf(-world->rot.x);
+  float cosrz=cosf(-world->rot.z),sinrz=sinf(-world->rot.z);
   Position posrz = {podpos.x,
                     podpos.y*cosrx+podpos.z*sinrx,
                     podpos.z*cosrx-podpos.y*sinrx};
@@ -140,12 +148,28 @@ GestureStep createGSHeadMove(int ticks, float headpan, float headtilt)
   return gs;
 }
 
-#define MAX_GESTURE_STEPS 10
-#define G_NOD 0
-#define G_COUNT 1
+GestureStep createGSWorldTransRot(int ticks, Position trans, Position rot)
+{
+  GestureStep gs={ticks, 0, 0,0, 0,0,0, 0,0,0, 0,0,0};
+  gs.legmode = M_STAND6;
+  gs.worldtrans = trans;
+  gs.worldrot = rot;
+  return gs;
+}
 
-GestureStep gestures[G_COUNT][MAX_GESTURE_STEPS]={{createGSHeadMove(5,0,0), createGSHeadMove(5,0,-1), createGSHeadMove(5,0,1), createGSHeadMove(5,0,0)}};
-int gesture_length[G_COUNT]={4};
+#define MAX_GESTURE_STEPS 10
+#define G_YES 0
+#define G_NO 1
+#define G_WIGGLE 2
+#define G_COUNT 3
+
+GestureStep gestures[G_COUNT][MAX_GESTURE_STEPS]=
+{
+  {createGSHeadMove(2,0,0), createGSHeadMove(1,0,-1), createGSHeadMove(1,0,1), createGSHeadMove(1,0,0)},
+  {createGSHeadMove(2,0,0), createGSHeadMove(1,-0.5,0), createGSHeadMove(1,0.5,0), createGSHeadMove(1,0,0)},
+  {createGSWorldTransRot(2,pos(0,0,0),pos(0,0,0)), createGSWorldTransRot(10,pos(0,0,0),pos(0.4,0,0)),createGSWorldTransRot(20,pos(0,0,0),pos(-0.4,0,0)),createGSWorldTransRot(10,pos(0,0,0),pos(0,0,0))}
+};
+int gesture_length[G_COUNT]={4,4,4};
 
 
 typedef struct T_Command
@@ -178,6 +202,10 @@ Leg createLeg(Position groundPos,Position jointPos,Position st4Pos, float coxaZe
   leg.mode=M_STAND6;
   leg.groundPositionForMode=-1;  //invalid ground position
   return leg;
+}
+float interpolatefloat(float v1, float v2, float alpha)
+{
+  return v1*(1-alpha) + v2*alpha;
 }
 Position interpolatePosition(Position pos1,Position pos2,float alpha)
 {
@@ -447,13 +475,16 @@ float getDistance(int fd)
   return dist;
 }
 
-void readvoltages(int fd)
+void readvoltages(int fd, MqttConnection *mqtt_connection)
 {
   serialPuts(fd,(char *)"VB\r");
   int voltage6V=serialGetchar(fd);
   serialPuts(fd,(char *)"VC\r");
   int voltage9V=serialGetchar(fd);
-  printf("6V=%g, 9V=%g\n",10.0f*voltage6V/255,10.0f*voltage9V/255);
+  char bufstring[256];
+  sprintf(bufstring,"-V 6V=%g, 9V=%g", 10.0f*voltage6V/255, 10.0f*voltage9V/255);
+  printf("%s\n", bufstring);
+  mqtt_connection->publish_string(bufstring);
 }
     /*
     // Scanning
@@ -491,7 +522,7 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
   if(pan>1800)pan=1800;
   snprintf(partialBuffer,30,"#0P%d #1P%d ",tilt,pan);
   strncat(serialBuffer,partialBuffer,1000);
-  //printf("serialBuffer: %s\n",serialBuffer);
+  printf("servocommands: %s\n",serialBuffer);
   strncat(serialBuffer,"T100\r",1000);
   //if(legCrossedBoundary)
     //printf("Crossed boundary!\n");
@@ -539,12 +570,13 @@ void on_message_func(const struct mosquitto_message *message)
 int main(int argc,char *argv[])
 {
   float headpan = 0, headtilt = -0.25;
-  Position rot = {0,0,0};
   struct timespec lastScanTime, curTime, diffTime;
   World world = {{0,0,0},{0,0,0}};
+  Position worldbasetrans = {0,0,0};
   Leg legs[LEGCNT];
   class MqttConnection *mqtt_connection;
   char received_copy[1000] = {0};
+  GestureStep lastgesturestep = {1, 0, 0,0, 0,0,0, 0,0,0, 0,0,0};
 
   printf("Mqtt init\n");
   mosqpp::lib_init();
@@ -582,6 +614,7 @@ int main(int argc,char *argv[])
 
   printf("Starting\n");
   int fd=serialOpen((char *)"/dev/ttyUSB0",115200);
+  int counter = 0;
   printf("serialOpen returns: %d\n",fd);
   usleep(100000);
   sendZeroString(fd);
@@ -602,12 +635,12 @@ int main(int argc,char *argv[])
   clock_gettime(CLOCK_MONOTONIC,&lastScanTime);
   while(true)
   {
-    printf("\n\n");
+    World worldmodifier = {{0,0,0},{0,0,0}};
     if(received)
     {
       strcpy(received_copy, received_msg);
       received = 0;
-      
+
       printf("Received1:'%s'\n",received_msg);
       printf("Received2:'%s'\n",received_copy);
       if(received_copy[0]=='G')
@@ -615,12 +648,17 @@ int main(int argc,char *argv[])
         //gesture
         int gesture_id = 0;
         sscanf(received_copy,"G %d", &gesture_id);
-        printf("Doing gesture %d", gesture_id);
-        command.type = Com_Gesture;
-        commandActive = 1;
-        commandTicks = 0;
-        command.gesture_id = gesture_id;
-        command.gesture_step = 0;
+        if(gesture_id>=0 && gesture_id<G_COUNT){
+          printf("Doing gesture %d", gesture_id);
+          command.type = Com_Gesture;
+          commandActive = 1;
+          commandTicks = 0;
+          command.gesture_id = gesture_id;
+          command.gesture_step = 0;
+        }else{
+          printf("Invalid gesture: %d\n", gesture_id);
+          commandActive = 0;
+        }
       }
       if(received_copy[0]=='P')
       {
@@ -660,11 +698,11 @@ int main(int argc,char *argv[])
         else
           command.type = Com_Stand6;
       }
-      if(received_copy[0]=='G')
+      if(received_copy[0]=='T')
       {
         // Change gait
         int gaitType = 0;
-        sscanf(received_copy,"G %d",&gaitType);
+        sscanf(received_copy,"T %d",&gaitType);
         if(gaitType == 0)
           currentGait = TRIPODGAIT;
         else if(gaitType == 1)
@@ -677,7 +715,6 @@ int main(int argc,char *argv[])
     clock_gettime(CLOCK_MONOTONIC,&curTime);
     diffTime=timespecDiff(lastScanTime,curTime);
 
-    readvoltages(fd);
     dist=getDistance(fd);
     maxSpeed = maxMoveSpeeds[currentGait];
 
@@ -686,6 +723,11 @@ int main(int argc,char *argv[])
     if(commandActive)
     {
       GestureStep gs;
+      float alpha;
+      if(gs.ticks>0)
+        alpha = commandTicks*1.0f/gs.ticks;
+      else
+        alpha = 0;
       frontLegPos.x = 0;
       frontLegPos.y = 0;
       frontLegPos.z = 0;
@@ -697,8 +739,12 @@ int main(int argc,char *argv[])
         mode = gs.legmode;
         headpan = gs.headpan;
 	headtilt = gs.headtilt;
+        worldmodifier.trans = interpolatePosition(lastgesturestep.worldtrans, gs.worldtrans, alpha);
+        worldmodifier.rot = interpolatePosition(lastgesturestep.worldrot, gs.worldrot, alpha);
+        frontLegPos = gs.frontlegpos;
         commandTicks++;
         if(commandTicks>gs.ticks){
+          lastgesturestep = gs;
           commandTicks = 0;
           command.gesture_step ++;
           if(command.gesture_step >= gesture_length[command.gesture_id]){
@@ -725,7 +771,7 @@ int main(int argc,char *argv[])
         printf("Command active, rotating..");
         headpan = command.rot.z;
         headtilt = command.rot.x;
-        rot = command.rot;
+        worldmodifier.rot = command.rot;
         break;
       case Com_Stand4:
         mode = M_STAND4;
@@ -774,6 +820,21 @@ int main(int argc,char *argv[])
       drotz=0;
     }
 
+    // Adjust world
+    float cosrz=cosf(-world.rot.z),sinrz=sinf(-world.rot.z);
+    float moveGroundX=moveX*cosrz+moveY*sinrz;
+    float moveGroundY=moveY*cosrz-moveX*sinrz;
+    //move speed max = move(X,Y) / ( 8 / partialAdd) ?
+    worldbasetrans.x+=moveGroundX/6.0;
+    worldbasetrans.y+=moveGroundY/6.0;
+    // worldbaserot += drotz?
+    world.trans = worldbasetrans;
+    world.trans.x += worldmodifier.trans.x;
+    world.trans.y += worldmodifier.trans.y;
+    world.trans.z += worldmodifier.trans.z;
+    world.rot = worldmodifier.rot;
+    printf("World: %g,%g,%g, %g,%g,%g\n", world.trans.x,world.trans.y,world.trans.z, world.rot.x,world.rot.y,world.rot.z);
+
     if(servosPowered)
       sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headpan, headtilt);
     else
@@ -781,18 +842,12 @@ int main(int argc,char *argv[])
 
     updateStepAndPartial(&step, &partial);
 
-
-    // Adjust world
-    float cosrz=cosf(-world.rot.z),sinrz=sinf(-world.rot.z);
-    float moveGroundX=moveX*cosrz+moveY*sinrz;
-    float moveGroundY=moveY*cosrz-moveX*sinrz;
-    //move speed max = move(X,Y) / ( 8 / partialAdd) ?
-    world.trans.x+=moveGroundX/6.0;
-    world.trans.y+=moveGroundY/6.0;
-    world.rot.x=rot.x;
-    world.rot.y=rot.y;
-    world.rot.z=rot.z; // +=drotz
-    usleep(50000);
+    usleep(SLEEP_MICROS);
+    counter ++;
+    if(counter>(10000000/SLEEP_MICROS)){
+      counter = 0;
+      readvoltages(fd, mqtt_connection);
+    }
   }
   serialClose(fd);
   mqtt_connection->loop_stop();

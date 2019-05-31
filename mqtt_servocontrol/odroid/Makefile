@@ -1,4 +1,4 @@
-CFLAGS=-Wall -ggdb -I ~/mosq/mosquitto-1.4.5/lib -I ~/mosq/mosquitto-1.4.5/lib/cpp
+CFLAGS=-Wall -ggdb -I ~/mosq/mosquitto-1.4.5/lib -I ~/mosq/mosquitto-1.4.5/lib/cpp -std=gnu++11
 LDFLAGS=-L ~/mosq/mosquitto-1.4.5/lib  ~/mosq/mosquitto-1.4.5/lib/cpp/libmosquittopp.so.1  ~/mosq/mosquitto-1.4.5/lib/libmosquitto.so.1
 
 .PHONY: all clean
