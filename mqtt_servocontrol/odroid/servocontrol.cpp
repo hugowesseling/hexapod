@@ -34,6 +34,8 @@ const char *POWEREDDOWNSTRING="#0L #1L #2L #3L #4L #5L #6L #7L #8L #9L #10L #11L
 #define S_MOVEUP 1
 #define S_MOVEDOWN 2
 
+#define GROUND_Z -8 //position of ground compared to zero of pod
+
 
 typedef struct T_Position
 {
@@ -286,7 +288,7 @@ int getLegStatus(int currentGait,int legNr,int step)
 Position frontLegPos = {0,0,0};
 
 // See tripod sequence here: http://www.lynxmotion.com/images/assembly/ssc32/h2seqdia.gif
-void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,float groundZ,int mode)
+void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float moveY,int mode)
 {
   int status=S_GROUND;
   // leg->mode plays catch-up with mode given to this function.
@@ -330,18 +332,19 @@ void setSeqPos(Leg *leg,int step,float partial,World *world,float moveX,float mo
       {
         //calculate new groundPosition
         //for now use old position with some translation
-        Position worldGroundPos;
+        Position podGroundPos;
         if(mode==M_STAND4)
-          worldGroundPos=createPosition(leg->st4Pos.x,leg->st4Pos.y,groundZ);
+          podGroundPos=createPosition(leg->st4Pos.x,leg->st4Pos.y,0);
         else
-          worldGroundPos=createPosition(leg->neutralAirPos.x,leg->neutralAirPos.y,groundZ);
+          podGroundPos=createPosition(leg->neutralAirPos.x,leg->neutralAirPos.y,0);
         if(mode==M_WALKING) //only adjust ground position away from neutralposition if walking
         {
           //New groundPosition=<airpos projected on ground> + <movement>
-          worldGroundPos.x-=moveX;
-          worldGroundPos.y-=moveY;
+          podGroundPos.x-=moveX;
+          podGroundPos.y-=moveY;
         }
-        leg->groundPos=podToWorld(world,worldGroundPos);
+        leg->groundPos=podToWorld(world,podGroundPos);
+        (leg->groundPos).z = GROUND_Z;
         //Store for which mode the ground position is calculated
         leg->groundPositionForMode=mode;
       }
@@ -515,7 +518,7 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
   //printf("MODE: %d\n",mode);
   for(i=0;i<LEGCNT;i++)
   {
-     setSeqPos(&legs[i],step,partial,world,moveX,moveY,-8,mode);
+     setSeqPos(&legs[i],step,partial,world,moveX,moveY,mode);
      getHexCommands(&legs[i],partialBuffer);
      strncat(serialBuffer,partialBuffer,1000);
   }
@@ -527,7 +530,8 @@ void sendServoCommands(int serialHandle, Leg legs[],int step,float partial,World
   if(pan>1800)pan=1800;
   snprintf(partialBuffer,30,"#0P%d #1P%d ",tilt,pan);
   strncat(serialBuffer,partialBuffer,1000);
-  printf("servocommands: %s\n",serialBuffer);
+  printf("Servocommands to be printed:\n");
+  printf("Servocommands: %s\n",serialBuffer);
   strncat(serialBuffer,"T100\r",1000);
   //if(legCrossedBoundary)
     //printf("Crossed boundary!\n");
@@ -846,11 +850,19 @@ int main(int argc,char *argv[])
     world.trans.z += worldmodifier.trans.z;
     world.rot = worldmodifier.rot;
     printf("World: %g,%g,%g, %g,%g,%g\n", world.trans.x,world.trans.y,world.trans.z, world.rot.x,world.rot.y,world.rot.z);
-
-    if(servosPowered)
+    char legModes[7];
+    for(int i=0;i<6;i++){
+      legModes[i]=(legs[i].mode==M_WALKING?'W':(legs[i].mode==M_STAND6?'6':'4'));
+    }
+    legModes[6]=0;
+    printf("Leg modes2: %s\n", legModes);
+    if(servosPowered){
+      printf("Send servo commands:\n");
       sendServoCommands(fd,legs,step,partial,&world,mode, moveX,moveY, headpan, headtilt);
-    else
+    } else {
+      printf("Servos not powered\n");
       sendPoweredDown(fd);
+    }
 
     updateStepAndPartial(&step, &partial);
 
