@@ -182,12 +182,9 @@ int gesture_length[G_COUNT]={4,4,4,4,2};
 typedef struct T_Command
 {
   int type;
-  float moveX;
-  float moveY;
-  float moveZ;
   float drotz;
   int ticks;
-  Position rot;
+  Position rot, move;
   int gesture_id;
   int gesture_step;
 } Command;
@@ -696,8 +693,8 @@ int main(int argc,char *argv[])
       if(received_copy[0]=='W')
       {
         // Walk
-        sscanf(received_copy,"W %f %f %f %d",&command.moveX,&command.moveY,&command.drotz,&command.ticks);
-        printf("Move command received: move(%f,%f) rot:%f for %d ticks\n",command.moveX,command.moveY,command.drotz,command.ticks);
+        sscanf(received_copy,"W %f %f %f %d",&command.move.x,&command.move.y,&command.drotz,&command.ticks);
+        printf("Move command received: move(%f,%f) rot:%f for %d ticks\n",command.move.x,command.move.y,command.drotz,command.ticks);
         commandActive=1;
         commandTicks=0;
         command.type = Com_Move;
@@ -706,7 +703,7 @@ int main(int argc,char *argv[])
       {
         // Stand 4 / 6
         int standtype = 0;
-        sscanf(received_copy,"S %d %f %f %f", &standtype, &command.moveX, &command.moveY, &command.moveZ);
+        sscanf(received_copy,"S %d %f %f %f %f %f %f", &standtype, &command.move.x, &command.move.y, &command.move.z, &command.rot.x, &command.rot.y, &command.rot.z);
         commandActive = 1;
         commandTicks = 0;
         if(standtype == 4)
@@ -770,8 +767,8 @@ int main(int argc,char *argv[])
         break;
       case Com_Move:
         mode=M_WALKING; //override mode when executing command
-        moveX=command.moveX*maxSpeed;
-        moveY=command.moveY*maxSpeed;
+        moveX=command.move.x*maxSpeed;
+        moveY=command.move.y*maxSpeed;
         drotz=command.drotz;
         printf("Command active, move, rot:(%g,%g),%g tick: %d/%d\n",
                moveX,moveY,drotz,commandTicks,command.ticks);
@@ -792,13 +789,13 @@ int main(int argc,char *argv[])
       case Com_Stand4:
         mode = M_STAND4;
         printf("Command active, stand4-ing..");
-        frontLegPos.x = command.moveX;
-        frontLegPos.y = command.moveY;
-        frontLegPos.z = command.moveZ;
+        frontLegPos = command.move;
         break;
       case Com_Stand6:
         mode = M_STAND6;
         printf("Command active, stand6-ing..");
+        worldmodifier.rot = command.rot;
+        worldmodifier.trans = command.move;
         break;
       }
     }
