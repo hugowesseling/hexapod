@@ -128,7 +128,7 @@ int main(int argc,char *argv[])
           if(strcmp(alias, processNames[i].key) == 0){
 	    const char *pn = processNames[i].value;
 	    char bufstring[256];
-            sprintf(bufstring, "ps -Af | grep \"[%c]%s\"", pn[0], pn+1);
+            sprintf(bufstring, "ps -Af | grep \"[%c]%s$\"", pn[0], pn+1);
             printf("Executing \"%s\"\n", bufstring);
             fflush(stdout);
 	    int retval = system(bufstring);
