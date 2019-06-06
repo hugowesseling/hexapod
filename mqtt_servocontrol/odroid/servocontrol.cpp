@@ -63,6 +63,7 @@ typedef struct T_World
 Position worldToPod(World *world,Position worldPos)
 {
   float cosrx=cosf(world->rot.x),sinrx=sinf(world->rot.x);
+  float cosry=cosf(world->rot.y),sinry=sinf(world->rot.y);
   float cosrz=cosf(world->rot.z),sinrz=sinf(world->rot.z);
   Position transPos = {worldPos.x+world->trans.x,
                        worldPos.y+world->trans.y,
@@ -70,19 +71,26 @@ Position worldToPod(World *world,Position worldPos)
   Position posrz = {transPos.x*cosrz+transPos.y*sinrz,
                     transPos.y*cosrz-transPos.x*sinrz,
                     transPos.z};
+  Position posrzy = {posrz.x*cosry+posrz.z*sinry,
+                     posrz.y,
+                     posrz.z*cosry-posrz.x*sinry};
   Position podPos = {posrz.x,
-                     posrz.y*cosrx+posrz.z*sinrx,
-                     posrz.z*cosrx-posrz.y*sinrx};
+                     posrzy.y*cosrx+posrzy.z*sinrx,
+                     posrzy.z*cosrx-posrzy.y*sinrx};
   return podPos;
 }
 
 Position podToWorld(World *world,Position podpos)
 {
   float cosrx=cosf(-world->rot.x),sinrx=sinf(-world->rot.x);
+  float cosry=cosf(-world->rot.y),sinry=sinf(-world->rot.y);
   float cosrz=cosf(-world->rot.z),sinrz=sinf(-world->rot.z);
-  Position posrz = {podpos.x,
+  Position posrzy = {podpos.x,
                     podpos.y*cosrx+podpos.z*sinrx,
                     podpos.z*cosrx-podpos.y*sinrx};
+  Position posrz = {posrzy.x*cosry+posrzy.z*sinry,
+                    posrzy.y,
+                    posrzy.z*cosry-posrzy.x*sinry};
   Position transPos = {posrz.x*cosrz+posrz.y*sinrz,
                        posrz.y*cosrz-posrz.x*sinrz,
                        posrz.z};
