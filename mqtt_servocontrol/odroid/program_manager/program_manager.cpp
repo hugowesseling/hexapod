@@ -33,15 +33,17 @@ typedef struct strstrmap{
 	const char *key, *value;
 } StrStrMap;
 
-#define ALIAS_COUNT 3
+#define ALIAS_COUNT 4
 StrStrMap processNames[ALIAS_COUNT] = {
 	"pm", "program_manager", 
 	"sc", "servocontrol",
+	"ac", "audiocontrol",
 	"sv", "ffmpeg"};
 
 StrStrMap cmds[ALIAS_COUNT] = {
 	"pm", "/home/odroid/github/hexapod/mqtt_servocontrol/odroid/program_manager/program_manager &",
 	"sc", "/home/odroid/github/hexapod/mqtt_servocontrol/odroid/servocontrol &",
+	"ac", "/home/odroid/github/hexapod/mqtt_servocontrol/odroid/audiocontrol/audiocontrol &",
 	"sv", "/home/odroid/stream_video.sh"};
 
 int main(int argc,char *argv[])
