@@ -15,20 +15,6 @@
 using namespace std;
 
 #define SLEEP_MICROS 50000
-
-int received = 0;
-char received_msg[1000] = {0};
-
-void on_message_func(const struct mosquitto_message *message)
-{
-    printf("on_message_func: %s\n", (char *)(message->payload));
-    if(!received && message->payload != NULL)
-    {
-        strcpy(received_msg,(char *)(message->payload));
-        received = 1;
-    }
-}
-
 typedef struct strstrmap{
 	const char *key, *value;
 } StrStrMap;
@@ -46,31 +32,19 @@ StrStrMap cmds[ALIAS_COUNT] = {
 	"ac", "/home/odroid/github/hexapod/mqtt_servocontrol/odroid/audiocontrol/audiocontrol &",
 	"sv", "/home/odroid/stream_video.sh"};
 
-int main(int argc,char *argv[])
+
+class MqttConnection *mqtt_connection;
+int received = 0;
+char received_msg[1000] = {0};
+
+void on_message_func(const struct mosquitto_message *message)
 {
-  class MqttConnection *mqtt_connection;
   char received_copy[1000] = {0};
-  int counter = 1000000;
-
-  printf("Mqtt init\n");
-  fflush(stdout);
-  mosqpp::lib_init();
-  printf("Connect to synology\n");
-  mqtt_connection = new MqttConnection("program_manager", "localhost", 1883, "programcontrol", on_message_func);
-  printf("Starting loop\n");
-  fflush(stdout);
-  mqtt_connection->loop_start();
-  printf("Mqtt setup complete\n");
-  fflush(stdout);
-  
-  usleep(100000);
-
-  while(true)
+  printf("on_message_func: %s\n", (char *)(message->payload));
+  if(!received && message->payload != NULL)
   {
-    if(received)
-    {
+      strcpy(received_msg,(char *)(message->payload));
       strcpy(received_copy, received_msg);
-      received = 0;
 
       printf("Received1:'%s'\n",received_msg);
       fflush(stdout);
@@ -146,7 +120,30 @@ int main(int argc,char *argv[])
           fflush(stdout);
         }
       }
+  }
+}
 
+int main(int argc,char *argv[])
+{
+  int counter = 1000000;
+
+  printf("Mqtt init\n");
+  fflush(stdout);
+  mosqpp::lib_init();
+  printf("Connect to synology\n");
+  mqtt_connection = new MqttConnection("program_manager", "localhost", 1883, "programcontrol", on_message_func);
+  printf("Starting loop\n");
+  fflush(stdout);
+  mqtt_connection->loop_start();
+  printf("Mqtt setup complete\n");
+  fflush(stdout);
+  
+  usleep(100000);
+
+  while(true)
+  {
+    if(received)
+    {
     }
     usleep(SLEEP_MICROS);
     counter++;
